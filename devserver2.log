@@ -1,0 +1,18 @@
+
+> ranktsy@0.1.0 dev
+> next dev -p 3002
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3002
+- Network:       http://192.168.0.104:3002
+- Environments: .env.local
+✓ Ready in 982ms
+⨯ Another next dev server is already running.
+
+- Local:        http://localhost:3001
+- PID:          3300
+- Dir:          D:\LET RANK\Ranktsy
+- Log:          .next\dev\logs\next-development.log
+
+Run taskkill /PID 3300 /F to stop it.
+[?25h

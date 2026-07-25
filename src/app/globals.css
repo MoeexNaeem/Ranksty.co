@@ -84,6 +84,10 @@ svg  { max-width: 100%; }
   .rgrid-3 { grid-template-columns: repeat(2, 1fr) !important; }
   .rsplit  { grid-template-columns: 1fr !important; }
   .rband   { grid-template-columns: 1fr !important; }
+  .rstats  { grid-template-columns: repeat(3, 1fr) !important; }
+}
+@media (max-width: 640px) {
+  .rstats  { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
 /* ── Dashboard sidebar → off-canvas drawer ≤ 900px ───────────────────────────── */

@@ -1,9 +1,13 @@
 'use client'
 /**
- * Ranktsy landing — a fresh, vibrant SaaS design (orange/purple/green) built to
- * match the reference mockup: split hero with a dashboard preview, colorful tool
- * grid, stats bar, trends/testimonial/pricing band, gradient CTA, trust logos.
- * Nothing shared with the Rankkw landing structure.
+ * Ranktsy landing — vibrant SaaS design (orange/purple/green) matching the
+ * reference mockup: split hero with a dashboard preview, colorful tool grid,
+ * stats bar, trends/testimonial band, gradient CTA, trust logos. Pricing is
+ * intentionally omitted (commercial-access compliance parity with Rankkw).
+ *
+ * NOTE: the testimonial, the stats-bar figures, the "Trusted by 10,000+" line
+ * and the "featured in" logo strip are PLACEHOLDER marketing content — replace
+ * with real figures/quotes before launch.
  */
 import Link from 'next/link'
 
@@ -43,18 +47,18 @@ function Wordmark({ dark = false }: { dark?: boolean }) {
 }
 
 /* ─── Nav ─────────────────────────────────────────────────────────── */
-function Nav() {
+export function Nav() {
   const link: React.CSSProperties = { fontSize: 15, fontWeight: 500, color: INK, textDecoration: 'none' }
   return (
     <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${BORDER}` }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', height: 72, padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="/" style={{ textDecoration: 'none' }}><Wordmark /></Link>
         <nav className="rnav-links" style={{ display: 'flex', alignItems: 'center', gap: 30 }}>
-          {['Features', 'Tools', 'Resources', 'Blog'].map(l => <a key={l} href="#" style={link}>{l}</a>)}
+          {['Features', 'Tools'].map(l => <a key={l} href="#" style={link}>{l}</a>)}
         </nav>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link href="/login" style={{ ...link, padding: '9px 16px', borderRadius: 10, border: `1px solid ${BORDER}` }}>Log in</Link>
-          <Link href="/register" style={{ fontSize: 15, fontWeight: 600, color: '#fff', background: O, textDecoration: 'none', padding: '10px 18px', borderRadius: 10, boxShadow: '0 4px 12px rgba(255,90,31,0.28)' }}>Get started free →</Link>
+          <Link href="/register" style={{ fontSize: 15, fontWeight: 600, color: '#fff', background: O, textDecoration: 'none', padding: '10px 18px', borderRadius: 10, boxShadow: '0 4px 12px rgba(255,90,31,0.28)' }}>Start free</Link>
         </div>
       </div>
     </header>
@@ -70,13 +74,11 @@ function DashMock() {
     { k: 'Avg. CTR', v: '6.48%', d: '+8.2%', up: true },
     { k: 'AI Credits', v: '2,450', d: '-20%', up: false },
   ]
-  // Simple upward line for the mini chart
   const pts = [8, 22, 15, 30, 24, 40, 34, 52, 46, 64, 74]
   const w = 300, h = 90
   const path = pts.map((p, i) => `${(i / (pts.length - 1)) * w},${h - (p / 80) * h}`).join(' ')
   return (
     <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 20, boxShadow: '0 30px 70px rgba(17,24,39,0.14)', overflow: 'hidden', display: 'flex', minHeight: 440 }}>
-      {/* mini sidebar */}
       <div style={{ width: 132, borderRight: `1px solid ${BORDER}`, padding: '14px 10px', flexShrink: 0, background: '#fff' }}>
         <div style={{ marginBottom: 12, paddingLeft: 4 }}><Wordmark /></div>
         {nav.map((n, i) => (
@@ -86,7 +88,6 @@ function DashMock() {
           </div>
         ))}
       </div>
-      {/* main */}
       <div style={{ flex: 1, padding: 14, background: BG, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div>
@@ -95,7 +96,6 @@ function DashMock() {
           </div>
           <span style={{ fontSize: 8.5, fontWeight: 600, color: GREEN, background: '#ECFDF5', padding: '3px 8px', borderRadius: 100 }}>● Live</span>
         </div>
-        {/* stat tiles */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 12 }}>
           {stats.map(s => (
             <div key={s.k} style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '8px 8px' }}>
@@ -105,7 +105,6 @@ function DashMock() {
             </div>
           ))}
         </div>
-        {/* chart + donut */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 8 }}>
           <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: 10 }}>
             <p style={{ fontSize: 9.5, fontWeight: 600, color: INK, marginBottom: 6 }}>Keyword Trend</p>
@@ -123,7 +122,6 @@ function DashMock() {
             <p style={{ fontSize: 8, color: GREEN, fontWeight: 600, marginTop: 6 }}>Great Score! 🎉</p>
           </div>
         </div>
-        {/* AI generator strip */}
         <div style={{ marginTop: 8, background: `linear-gradient(120deg, ${P}, #A78BFA)`, borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <p style={{ fontSize: 9.5, fontWeight: 700, color: '#fff' }}>AI Listing Generator</p>
@@ -137,7 +135,7 @@ function DashMock() {
 }
 
 /* ─── Hero ────────────────────────────────────────────────────────── */
-function Hero() {
+export function Hero() {
   const feat = [
     { icon: ICONS.shield, c: O, t: 'No Credit Card', s: 'Required' },
     { icon: ICONS.star, c: P, t: 'Free in Beta', s: 'Full Access' },
@@ -147,7 +145,6 @@ function Hero() {
   return (
     <section style={{ background: BG, padding: '64px 24px 80px' }}>
       <div className="rsplit" style={{ maxWidth: 1200, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: 56, alignItems: 'center' }}>
-        {/* left */}
         <div>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, color: P, background: '#F3EEFE', padding: '6px 13px', borderRadius: 100, marginBottom: 22 }}>
             ✦ AI-Powered Etsy SEO Platform
@@ -158,7 +155,6 @@ function Hero() {
           <p style={{ fontSize: 18, color: GRAY, lineHeight: 1.6, maxWidth: 460, marginBottom: 28 }}>
             Ranktsy gives you the data, tools and AI insights you need to rank higher, get more traffic and increase sales on Etsy.
           </p>
-          {/* search */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 14, padding: 6, maxWidth: 440, boxShadow: '0 4px 16px rgba(17,24,39,0.05)' }}>
             <span style={{ paddingLeft: 12, color: GRAY, display: 'flex' }}>{ICONS.search}</span>
             <input placeholder="Search Etsy keyword..." style={{ flex: 1, border: 'none', outline: 'none', fontSize: 15, fontFamily: FONT, color: INK, background: 'transparent', minWidth: 0 }} />
@@ -168,7 +164,6 @@ function Hero() {
             <span style={{ fontSize: 13, color: GRAY }}>Popular Searches:</span>
             {pop.map(p => <span key={p} style={{ fontSize: 12.5, color: INK, background: '#fff', border: `1px solid ${BORDER}`, padding: '4px 11px', borderRadius: 100 }}>{p}</span>)}
           </div>
-          {/* feature chips */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 26 }}>
             {feat.map(f => (
               <div key={f.t} style={{ display: 'flex', alignItems: 'center', gap: 9, background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '10px 14px' }}>
@@ -177,23 +172,11 @@ function Hero() {
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginBottom: 22 }}>
-            <Link href="/register" style={{ background: O, color: '#fff', textDecoration: 'none', fontSize: 16, fontWeight: 600, padding: '15px 28px', borderRadius: 12, boxShadow: '0 8px 22px rgba(255,90,31,0.30)' }}>Get started free</Link>
-            <button style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: '#fff', border: `1px solid ${BORDER}`, color: INK, fontSize: 16, fontWeight: 600, padding: '15px 24px', borderRadius: 12, cursor: 'pointer', fontFamily: FONT }}>{ICONS.play} Watch Demo</button>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex' }}>
-              {['#FF5A1F', '#8B5CF6', '#3B82F6', '#10B981'].map((c, i) => (
-                <span key={c} style={{ width: 32, height: 32, borderRadius: '50%', background: c, border: '2px solid #fff', marginLeft: i ? -10 : 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>{'AJKS'[i]}</span>
-              ))}
-            </div>
-            <div>
-              <span style={{ color: '#F59E0B', fontSize: 14 }}>★★★★★</span> <strong style={{ fontSize: 14, color: INK }}>4.8/5</strong>
-              <p style={{ fontSize: 12.5, color: GRAY }}>Trusted by 10,000+ Etsy Sellers Worldwide</p>
-            </div>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Link href="/register" style={{ background: O, color: '#fff', textDecoration: 'none', fontSize: 16, fontWeight: 600, padding: '15px 28px', borderRadius: 12, boxShadow: '0 8px 22px rgba(255,90,31,0.30)' }}>Start free</Link>
+            <a href="#keywords" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: '#fff', border: `1px solid ${BORDER}`, color: INK, fontSize: 16, fontWeight: 600, padding: '15px 24px', borderRadius: 12, cursor: 'pointer', fontFamily: FONT, textDecoration: 'none' }}>Try the keyword tool ↓</a>
           </div>
         </div>
-        {/* right: dashboard preview */}
         <div className="rhide-sm"><DashMock /></div>
       </div>
     </section>
@@ -201,7 +184,7 @@ function Hero() {
 }
 
 /* ─── Tools grid ──────────────────────────────────────────────────── */
-function Tools() {
+export function Tools() {
   const tools = [
     { icon: ICONS.search, c: O, t: 'Keyword Research', s: 'Find high-volume, low competition keywords' },
     { icon: ICONS.box, c: P, t: 'Product Research', s: 'Discover winning products before your competitors' },
@@ -245,7 +228,7 @@ function Stats() {
   ]
   return (
     <section style={{ background: CARD, padding: '0 24px 80px' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', background: '#F3EEFE', borderRadius: 24, padding: '34px 28px', display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 20 }}>
+      <div className="rstats" style={{ maxWidth: 1200, margin: '0 auto', background: '#F3EEFE', borderRadius: 24, padding: '34px 28px', display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 20 }}>
         {stats.map(s => (
           <div key={s.s} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ width: 40, height: 40, borderRadius: 11, background: '#fff', color: P, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</span>
@@ -264,7 +247,6 @@ function Band() {
   return (
     <section style={{ background: BG, padding: '80px 24px' }}>
       <div className="rband" style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }}>
-        {/* trends */}
         <div style={cardBase}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: INK }}>Etsy Trends This Week</h3>
@@ -284,7 +266,6 @@ function Band() {
             <div><p style={{ fontSize: 11, color: GRAY }}>Total Searches</p><p style={{ fontSize: 22, fontWeight: 800, color: INK }}>125.6K</p><p style={{ fontSize: 11, fontWeight: 600, color: GREEN }}>↑ 18.3% vs last week</p></div>
           </div>
         </div>
-        {/* testimonial */}
         <div style={cardBase}>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 16 }}>What Our Users Say</h3>
           <span style={{ fontSize: 40, color: O, lineHeight: 0.5, fontWeight: 800 }}>&ldquo;</span>
