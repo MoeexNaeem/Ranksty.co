@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { memCache, cacheKey, CACHE_TTL } from '@/lib/cache'
 import { searchEtsyListingsPaged } from '@/lib/etsy'
+import { guardSearch } from '@/lib/searchGate'
 import type { SearchOpts as EtsySearchOpts } from '@/lib/etsy'
 import type { ApiResponse, HotProduct, HotProductsResponse, EtsyListing } from '@/types'
 
@@ -63,6 +64,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ho
   if (q.length < 2) {
     return NextResponse.json({ success: false, error: 'Enter a product, tag, or niche to search (2+ characters).' }, { status: 400 })
   }
+
+  const gate = await guardSearch<HotProductsResponse>(req)
+  if (gate) return gate
 
   // Cache the raw Etsy scan (expensive) separately from the cheap re-sort/filter,
   // so changing sort or a client-side filter is instant.

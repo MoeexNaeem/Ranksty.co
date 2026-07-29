@@ -392,3 +392,10 @@ https://react.dev/link/hydration-mismatch
 [browser] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior (file://D:/LET RANK/Ranktsy/.next/dev/static/chunks/node_modules_next_dist_115brz8._.js:2477:13)
  GET /api/keywords?q=silver%20necklace 200 in 15ms (next.js: 4ms, application-code: 11ms)
  GET /api/trends?q=silver%20necklace 200 in 24ms (next.js: 17ms, application-code: 6ms)
+ GET / 200 in 118ms (next.js: 14ms, application-code: 103ms)
+ GET /api/trends?q=silver%20necklace 200 in 38ms (next.js: 32ms, application-code: 7ms)
+ GET /api/keywords?q=silver%20necklace 200 in 40ms (next.js: 5ms, application-code: 34ms)
+(node:3300) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(node:3300) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+ GET /api/trends?q=silver%20necklace 200 in 1090ms (next.js: 12ms, application-code: 1078ms)
+ GET /api/keywords?q=silver%20necklace 200 in 1092ms (next.js: 3ms, application-code: 1089ms)

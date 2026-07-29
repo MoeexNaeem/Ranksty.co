@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { KeywordHistory } from '@/lib/models'
 import { getKeywordCore } from '@/lib/keywords'
+import { normalizeGeo } from '@/lib/google-ads'
 import { getCurrentUser } from '@/lib/auth/session'
+import { guardSearch } from '@/lib/searchGate'
 import type { ApiResponse, KeywordSearchResponse } from '@/types'
 
 export const runtime = 'nodejs'
@@ -19,13 +21,18 @@ export const runtime = 'nodejs'
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<KeywordSearchResponse>>> {
   const { searchParams } = new URL(req.url)
   const query = searchParams.get('q')?.trim().toLowerCase()
+  const geo = normalizeGeo(searchParams.get('geo'))
 
   if (!query || query.length < 2) {
     return NextResponse.json({ success: false, error: 'Query must be at least 2 characters' }, { status: 400 })
   }
 
+  // Rate gate: 25 searches/hour per user, then a reCAPTCHA to continue.
+  const gate = await guardSearch<KeywordSearchResponse>(req)
+  if (gate) return gate
+
   try {
-    const data = await getKeywordCore(query)
+    const data = await getKeywordCore(query, geo)
 
     // Search history is a side-effect of the request, not part of it.
     getCurrentUser()

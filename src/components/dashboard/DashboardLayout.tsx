@@ -35,8 +35,10 @@ const SalesMapTab          = dynamic(() => import('./tabs/SalesMapTab').then(m =
 const DeliveryStatusTab    = dynamic(() => import('./tabs/DeliveryStatusTab').then(m => ({ default: m.DeliveryStatusTab })), { ssr: false })
 const KeywordGapTab        = dynamic(() => import('./tabs/KeywordGapTab').then(m => ({ default: m.KeywordGapTab })), { ssr: false })
 const HotProductsTab       = dynamic(() => import('./tabs/HotProductsTab').then(m => ({ default: m.HotProductsTab })), { ssr: false })
+const EtsyListingProTab    = dynamic(() => import('./tabs/EtsyListingProTab').then(m => ({ default: m.EtsyListingProTab })), { ssr: false })
+const CollectiveKeywordsTab = dynamic(() => import('./tabs/CollectiveKeywordsTab').then(m => ({ default: m.CollectiveKeywordsTab })), { ssr: false })
 
-type TabId = 'overview' | 'myshop' | 'hotproducts' | 'keywords' | 'gap' | 'listings' | 'competitors' | 'compsales' | 'trends' | 'buzz' | 'monthly' | 'topsellers' | 'catreport' | 'bulk' | 'rank' | 'shop' | 'salesmap' | 'delivery' | 'tags' | 'aihelper' | 'ctags' | 'generator' | 'audit' | 'compare' | 'spell' | 'fees' | 'adsroi' | 'category' | 'calendar' | 'lists'
+type TabId = 'overview' | 'myshop' | 'hotproducts' | 'keywords' | 'gap' | 'listings' | 'competitors' | 'compsales' | 'trends' | 'buzz' | 'monthly' | 'topsellers' | 'catreport' | 'bulk' | 'collective' | 'rank' | 'shop' | 'salesmap' | 'delivery' | 'tags' | 'aihelper' | 'listingpro' | 'ctags' | 'generator' | 'audit' | 'compare' | 'spell' | 'fees' | 'adsroi' | 'category' | 'calendar' | 'lists'
 
 const ICON = (d: React.ReactNode) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
 
@@ -69,6 +71,8 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode; description: stri
     icon: ICON(<><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></>) },
   { id: 'bulk',        label: 'Bulk Keywords', group: 'Research',    accent: 'purple',  description: 'Compare keywords in bulk',
     icon: ICON(<><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></>) },
+  { id: 'collective',  label: 'Collective Keyword Search', group: 'Research', accent: 'indigo', description: 'Search 25 keywords at once — each with its full data, saved & reused',
+    icon: ICON(<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>) },
   { id: 'rank',        label: 'Rank Checker',  group: 'Research',    accent: 'red',     description: 'Find where your shop ranks',
     icon: ICON(<><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>) },
   { id: 'shop',        label: 'Shop Analytics',group: 'Optimize',    accent: 'violet',  description: 'Analyze any Etsy shop',
@@ -85,6 +89,8 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode; description: stri
     icon: ICON(<><path d="M9.5 3l1.4 3.6L14.5 8l-3.6 1.4L9.5 13 8.1 9.4 4.5 8l3.6-1.4z"/><path d="M18 13l.9 2.1 2.1.9-2.1.9L18 19l-.9-2.1-2.1-.9 2.1-.9z"/></>) },
   { id: 'aihelper',    label: 'AI Listing Helper',group: 'Optimize', accent: 'fuchsia', description: 'AI title, tags & description',
     icon: ICON(<><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></>) },
+  { id: 'listingpro',  label: 'Etsy Listing Pro', group: 'Optimize', accent: 'rose',    description: 'A whole listing + AI images in one click',
+    icon: ICON(<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/><path d="M16 3.5l.7 1.6 1.8.3-1.3 1.3.3 1.8-1.5-.9-1.5.9.3-1.8-1.3-1.3 1.8-.3z"/></>) },
   { id: 'audit',       label: 'Listing Audit', group: 'Optimize',    accent: 'green',   description: 'Score a listing\'s SEO',
     icon: ICON(<><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></>) },
   { id: 'ctags',       label: 'Competitor Tags',group: 'Optimize',   accent: 'teal',    description: 'Extract a shop\'s tags',
@@ -125,7 +131,9 @@ function TabContent({ active, onNavigate }: { active: TabId; onNavigate: (id: Ta
     topsellers:  <TopSellersTab />,
     catreport:   <CategoryReportTab />,
     aihelper:    <AIListingHelperTab />,
+    listingpro:  <EtsyListingProTab />,
     bulk:        <BulkKeywordTab />,
+    collective:  <CollectiveKeywordsTab />,
     rank:        <RankCheckerTab />,
     shop:        <ShopTab />,
     tags:        <TagOptimizerTab />,

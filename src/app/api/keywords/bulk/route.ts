@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { memCache, cacheKey, CACHE_TTL } from '@/lib/cache'
 import { searchEtsyListingsPaged, levelForCount, difficultyScore, dominantCurrencyPrices } from '@/lib/etsy'
 import { googleKeywordMetrics, isGoogleAdsConfigured } from '@/lib/google-ads'
+import { guardSearch } from '@/lib/searchGate'
 import type { ApiResponse, BulkKeywordRow } from '@/types'
 
 export const runtime = 'nodejs'
@@ -85,6 +86,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<B
     return NextResponse.json({ success: false, error: 'Provide at least one keyword (2+ characters).' }, { status: 400 })
   }
 
+  const gate = await guardSearch<BulkKeywordRow[]>(req)
+  if (gate) return gate
+
   try {
     // Concurrency 4: each keyword is its own Etsy search, and the shared rate
     // gate in etsy.ts is what actually keeps us under the ~10/sec ceiling.
@@ -101,7 +105,14 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<B
     if (isGoogleAdsConfigured()) {
       const metrics = await googleKeywordMetrics(keywords)
       if (metrics.size) {
-        for (const r of rows) r.googleSearches = metrics.get(r.keyword)?.searches ?? null
+        for (const r of rows) {
+          const g = metrics.get(r.keyword.toLowerCase())
+          if (!g) continue
+          r.googleSearches    = g.searches ?? null
+          r.googleCompetition = g.competition as BulkKeywordRow['googleCompetition']
+          r.googleCpcLow      = g.cpcLow
+          r.googleCpcHigh     = g.cpcHigh
+        }
       }
     }
 

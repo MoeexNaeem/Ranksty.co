@@ -3,6 +3,7 @@ import { SNAPSHOT_RETENTION_DAYS } from '@/utils'
 import type {
   IKeywordCache, IKeywordHistory, IOTP,
   IShopSnapshot, IListingSnapshot, ITrackedShop,
+  ICollectiveKeywordData,
 } from '@/types'
 
 // ─── User ─────────────────────────────────────────────────────────────────────
@@ -51,11 +52,32 @@ OTPSchema.index({ email: 1, type: 1 })
 // ─── Keyword Cache ─────────────────────────────────────────────────────────────
 const KeywordCacheSchema = new Schema<IKeywordCache>({
   keyword:   { type: String, required: true, index: true, lowercase: true, trim: true },
+  // Country filter — Google volume/CPC/competition are geo-specific, so each
+  // country caches its own document for the same keyword. Defaults to US.
+  geo:       { type: String, default: 'US', uppercase: true, trim: true },
   data:      { type: Schema.Types.Mixed, required: true },
   expiresAt: { type: Date, required: true, index: { expireAfterSeconds: 0 } },
 }, { timestamps: true })
 
-KeywordCacheSchema.index({ keyword: 1, createdAt: -1 })
+KeywordCacheSchema.index({ keyword: 1, geo: 1, createdAt: -1 })
+
+// ─── Collective Keyword Data ───────────────────────────────────────────────────
+// The Collective Keyword Search tool saves each searched keyword's FULL package
+// (the same KeywordSearchResponse a single search returns) as its own document.
+// A later search reads this first and, if the row is still fresh, serves it
+// without any Etsy/Google API calls. `expiresAt` enforces the same freshness
+// bound as the main keyword cache — Etsy's terms don't allow serving their data
+// as current indefinitely, so a stale row is treated as a miss and refetched.
+const CollectiveKeywordDataSchema = new Schema<ICollectiveKeywordData>({
+  keyword:    { type: String, required: true, lowercase: true, trim: true },
+  geo:        { type: String, default: 'US', uppercase: true, trim: true },
+  data:       { type: Schema.Types.Mixed, required: true },
+  searchedAt: { type: Date, default: Date.now },
+  expiresAt:  { type: Date, required: true, index: { expireAfterSeconds: 0 } },
+}, { timestamps: true })
+
+// One package per keyword per country — makes the DB-first upsert idempotent.
+CollectiveKeywordDataSchema.index({ keyword: 1, geo: 1 }, { unique: true })
 
 // ─── Search History ────────────────────────────────────────────────────────────
 const KeywordHistorySchema = new Schema<IKeywordHistory>({
@@ -142,3 +164,4 @@ export const TrackedShop     = models.TrackedShop     ?? model<ITrackedShop>('Tr
 export const OTP           = models.OTP           ?? model<IOTP>('OTP', OTPSchema)
 export const KeywordCache  = models.KeywordCache  ?? model<IKeywordCache>('KeywordCache', KeywordCacheSchema)
 export const KeywordHistory= models.KeywordHistory?? model<IKeywordHistory>('KeywordHistory', KeywordHistorySchema)
+export const CollectiveKeywordData = models.CollectiveKeywordData ?? model<ICollectiveKeywordData>('CollectiveKeywordData', CollectiveKeywordDataSchema)

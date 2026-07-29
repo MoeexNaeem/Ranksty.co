@@ -2,10 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
-import type { ApiResponse, KeywordSearchResponse, KeywordData, NearMatch, EtsyListing } from '@/types'
+import { attachCaptchaInterceptor } from '@/components/security/captchaController'
+import type { ApiResponse, KeywordSearchResponse, KeywordData, NearMatch, EtsyListing, KeywordIdeasResponse } from '@/types'
 
 // ─── Axios instance (shared, avoids creating new instance per component) ──────
 const api = axios.create({ baseURL: '/api' })
+// Search-limit → captcha → retry, for keyword/trends calls made through `api`.
+attachCaptchaInterceptor(api)
 
 // ─── Query key factories (stable references for React Query cache) ─────────────
 export const queryKeys = {
@@ -31,12 +34,12 @@ const dontRetry4xx = (failureCount: number, error: unknown) => {
  */
 
 // ─── useKeywordSearch — fast core: stats, listings, analysis ──────────────────
-export function useKeywordSearch(query: string) {
+export function useKeywordSearch(query: string, geo = 'US') {
   return useQuery({
-    queryKey:  queryKeys.keywords(query),
+    queryKey:  [...queryKeys.keywords(query), geo] as const,
     queryFn:   async ({ signal }) => {
       const { data } = await api.get<ApiResponse<KeywordSearchResponse>>(
-        `/keywords?q=${encodeURIComponent(query)}`,
+        `/keywords?q=${encodeURIComponent(query)}&geo=${geo}`,
         { signal } // abort on unmount / query key change
       )
       if (!data.success || !data.data) throw new Error(data.error ?? 'Unknown error')
@@ -51,12 +54,12 @@ export function useKeywordSearch(query: string) {
 }
 
 // ─── useRelatedKeywords — the slow stage: one live search per keyword ─────────
-export function useRelatedKeywords(query: string) {
+export function useRelatedKeywords(query: string, geo = 'US') {
   return useQuery({
-    queryKey: queryKeys.related(query),
+    queryKey: [...queryKeys.related(query), geo] as const,
     queryFn: async ({ signal }) => {
       const { data } = await api.get<ApiResponse<KeywordData[]>>(
-        `/keywords/related?q=${encodeURIComponent(query)}`, { signal })
+        `/keywords/related?q=${encodeURIComponent(query)}&geo=${geo}`, { signal })
       if (!data.success || !data.data) throw new Error(data.error ?? 'Unknown error')
       return data.data
     },
@@ -106,12 +109,33 @@ export function useNearMatches(query: string) {
   })
 }
 
-// ─── useTrends ────────────────────────────────────────────────────────────────
-export function useTrends(query: string) {
+// ─── useKeywordIdeas — Google-suggested keywords (generateKeywordIdeas) ───────
+// Genuine discovery: Google returns terms we never searched for. Returns an empty
+// `ideas` array (not an error) when Google Ads isn't configured, so the panel can
+// render a "connect Google Ads" state.
+export function useKeywordIdeas(query: string, geo = 'US') {
   return useQuery({
-    queryKey:  queryKeys.trends(query),
+    queryKey: ['keywords-ideas', query.toLowerCase().trim(), geo] as const,
+    queryFn: async ({ signal }) => {
+      const { data } = await api.get<ApiResponse<KeywordIdeasResponse>>(
+        `/keywords/ideas?q=${encodeURIComponent(query)}&geo=${geo}`, { signal })
+      if (!data.success || !data.data) throw new Error(data.error ?? 'Unknown error')
+      return data.data
+    },
+    enabled:   query.trim().length >= 2,
+    staleTime: 1000 * 60 * 60,
+    gcTime:    1000 * 60 * 60,
+    placeholderData: (prev) => prev,
+    retry: dontRetry4xx,
+  })
+}
+
+// ─── useTrends ────────────────────────────────────────────────────────────────
+export function useTrends(query: string, geo = 'US') {
+  return useQuery({
+    queryKey:  [...queryKeys.trends(query), geo] as const,
     queryFn:   async ({ signal }) => {
-      const { data } = await api.get(`/trends?q=${encodeURIComponent(query)}`, { signal })
+      const { data } = await api.get(`/trends?q=${encodeURIComponent(query)}&geo=${geo}`, { signal })
       if (!data.success) throw new Error(data.error)
       return data.data
     },

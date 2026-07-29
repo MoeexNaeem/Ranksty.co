@@ -21,14 +21,17 @@ import { connectDB } from '@/lib/db'
 import { KeywordCache } from '@/lib/models'
 import { memCache, cacheKey, CACHE_TTL } from '@/lib/cache'
 import { searchEtsyListingsPaged, buildKeywordStats, buildSearchAnalysis, warmTaxonomy } from '@/lib/etsy'
-import { googleKeywordMetrics, isGoogleAdsConfigured } from '@/lib/google-ads'
+import { googleKeywordMetrics, googleAccountCurrency, isGoogleAdsConfigured } from '@/lib/google-ads'
 import type { KeywordSearchResponse } from '@/types'
 
-// v8: pipeline split into core/related/near. Bump when the CORE shape changes.
-export const KEYWORD_VERSION = 'v8'
+// v9: core/related now carry Google competition + CPC (account currency), not just
+// volume. Bump when the CORE shape changes.
+export const KEYWORD_VERSION = 'v9'
 
-export function coreKey(query: string) { return cacheKey('keyword', KEYWORD_VERSION, 'core', query) }
-export function relatedKey(query: string) { return cacheKey('keyword', KEYWORD_VERSION, 'related', query) }
+// Google volume/CPC/competition are country-specific, so the core & related keys
+// carry the geo. Near matches are pure Etsy (geo-independent), so they don't.
+export function coreKey(query: string, geo = 'US') { return cacheKey('keyword', KEYWORD_VERSION, 'core', geo, query) }
+export function relatedKey(query: string, geo = 'US') { return cacheKey('keyword', KEYWORD_VERSION, 'related', geo, query) }
 export function nearKey(query: string) { return cacheKey('keyword', KEYWORD_VERSION, 'near', query) }
 
 /**
@@ -52,7 +55,12 @@ function isStaleCore(d?: KeywordSearchResponse): boolean {
     d.stats.avgViews == null ||
     d.stats.favPerView == null ||
     d.related.some(r => r.listingsByMonth == null || r.avgViews === undefined) ||
-    (isGoogleAdsConfigured() && d.stats?.googleSearches == null)
+    (isGoogleAdsConfigured() && d.stats?.googleSearches == null) ||
+    // Pre-v9 docs carry Google volume but not competition/CPC/currency. The Mongo
+    // cache keys on the keyword alone, so bumping KEYWORD_VERSION doesn't retire
+    // them — this probe does. A fresh configured doc always SETS googleCurrency
+    // (to the code or null), so `undefined` uniquely marks the old shape.
+    (isGoogleAdsConfigured() && d.stats?.googleCurrency === undefined)
   )
 }
 
@@ -63,8 +71,8 @@ function isStaleCore(d?: KeywordSearchResponse): boolean {
  * 100-listing sample genuinely cannot know how many listings compete for a tag
  * across all of Etsy. getRelated() probes it for real.
  */
-export async function getKeywordCore(query: string): Promise<KeywordSearchResponse> {
-  const key = coreKey(query)
+export async function getKeywordCore(query: string, geo = 'US'): Promise<KeywordSearchResponse> {
+  const key = coreKey(query, geo)
 
   // Kick the taxonomy fetch off in the background on every request. It's needed
   // only for category NAMES, so it must never block the response — but starting
@@ -76,7 +84,7 @@ export async function getKeywordCore(query: string): Promise<KeywordSearchRespon
 
   try {
     await connectDB()
-    const dbHit = await KeywordCache.findOne({ keyword: query }).lean()
+    const dbHit = await KeywordCache.findOne({ keyword: query, geo }).lean()
     if (dbHit) {
       const data = dbHit.data as KeywordSearchResponse
       if (!isStaleCore(data)) {
@@ -100,8 +108,16 @@ export async function getKeywordCore(query: string): Promise<KeywordSearchRespon
     .catch(e => { console.error('[Keywords] analysis:', e); return undefined })
 
   if (isGoogleAdsConfigured()) {
-    const metrics = await googleKeywordMetrics([query])
-    if (metrics.size) data.stats.googleSearches = metrics.get(query)?.searches ?? null
+    const [metrics, currency] = await Promise.all([googleKeywordMetrics([query], geo), googleAccountCurrency()])
+    const g = metrics.get(query)
+    if (g) {
+      data.stats.googleSearches         = g.searches ?? null
+      data.stats.googleCompetition      = g.competition as KeywordSearchResponse['stats']['googleCompetition']
+      data.stats.googleCompetitionIndex = g.competitionIndex
+      data.stats.googleCpcLow           = g.cpcLow
+      data.stats.googleCpcHigh          = g.cpcHigh
+    }
+    data.stats.googleCurrency = currency
   }
 
   memCache.set(key, data, CACHE_TTL.KEYWORD)
@@ -110,8 +126,8 @@ export async function getKeywordCore(query: string): Promise<KeywordSearchRespon
   const expiresAt = new Date(Date.now() + CACHE_TTL.KEYWORD * 1000)
   connectDB()
     .then(() => KeywordCache.findOneAndUpdate(
-      { keyword: query },
-      { keyword: query, data, expiresAt },
+      { keyword: query, geo },
+      { keyword: query, geo, data, expiresAt },
       { upsert: true, new: true },
     ))
     .catch(e => console.error('[Keywords] DB write:', e))
