@@ -761,7 +761,11 @@ export { difficultyScore }
  */
 export async function enrichRelatedCompetition(related: KeywordData[]): Promise<KeywordData[]> {
   if (!related.length) return related
-  const facts = await pooled(related, 4, r => keywordFacts(r.keyword))
+  // Pool 8 (2× the original 4) so the enrichment better fills the global 8/sec
+  // Etsy gate instead of leaving it half-idle at ~2/sec. Kept at 8 rather than
+  // higher: past this, extra simultaneous connections tend to draw Etsy-side
+  // slowdowns without helping, and rateGate() already caps total throughput.
+  const facts = await pooled(related, 8, r => keywordFacts(r.keyword))
   return related.map((r, i) => {
     const f = facts[i]
     if (!f) return r                       // probe failed → stays unknown

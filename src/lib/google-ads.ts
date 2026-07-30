@@ -24,6 +24,8 @@
  * Override with GOOGLE_ADS_API_VERSION when Google retires this one; the error
  * thrown below names the variable so the fix is obvious from the logs.
  */
+import { memCache, cacheKey, CACHE_TTL } from '@/lib/cache'
+
 const V = process.env.GOOGLE_ADS_API_VERSION || 'v24'
 const digits = (s?: string) => (s ?? '').replace(/\D/g, '')
 
@@ -179,12 +181,34 @@ async function historicalMetrics(keywords: string[], geoId: string | null): Prom
  *  an empty map (never throws) when Google Ads isn't configured or the call fails. */
 export async function googleKeywordMetrics(keywords: string[], geoIso = 'US'): Promise<Map<string, GoogleMetric>> {
   if (!isGoogleAdsConfigured()) return new Map()
-  try {
-    return await historicalMetrics(keywords, geoIdFor(normalizeGeo(geoIso)))
-  } catch (e) {
-    console.error('[GoogleAds] keyword metrics failed:', e)
-    return new Map()
+  const geo = normalizeGeo(geoIso)
+  const out = new Map<string, GoogleMetric>()
+
+  // Per-keyword cache (keyed by keyword + country). Lets a batch "warm" call fetch
+  // many keywords in ONE Google request and have each per-keyword lookup afterwards
+  // hit cache instead of spending its own call — e.g. Collective Keyword Search
+  // warms all 25 up front, turning 25 Google calls into 1.
+  const misses: string[] = []
+  for (const kw of keywords) {
+    const k = kw.toLowerCase()
+    if (out.has(k)) continue
+    const hit = memCache.get<GoogleMetric>(cacheKey('gkm', 'v1', geo, k))
+    if (hit) out.set(k, hit)
+    else misses.push(kw)
   }
+
+  if (misses.length) {
+    try {
+      const fresh = await historicalMetrics(misses, geoIdFor(geo))
+      for (const [k, v] of fresh) {
+        out.set(k, v)
+        memCache.set(cacheKey('gkm', 'v1', geo, k), v, CACHE_TTL.KEYWORD)
+      }
+    } catch (e) {
+      console.error('[GoogleAds] keyword metrics failed:', e)
+    }
+  }
+  return out
 }
 
 /** Per-country search distribution for a single keyword, as CountryData[] (%). */

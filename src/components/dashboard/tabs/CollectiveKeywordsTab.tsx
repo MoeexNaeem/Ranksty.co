@@ -8,7 +8,9 @@ import { C, D, formatNumber } from '@/utils'
 import type { CollectiveKeywordResult, KeywordStats, KeywordData, EtsyListing } from '@/types'
 
 const MAX_KEYWORDS = 25
-const CONCURRENCY  = 4
+// 6 keywords in flight keeps the global Etsy rate gate saturated so the batch
+// finishes sooner; cached keywords return instantly regardless.
+const CONCURRENCY  = 6
 
 // Country filter — Google volume/CPC/competition are geo-specific, and the
 // selected country also sets the currency Etsy prices are converted to.
@@ -251,6 +253,12 @@ export function CollectiveKeywordsTab() {
     setRunning(true)
     setOrder(keywords)
     setCells(Object.fromEntries(keywords.map(k => [k, { status: 'loading' as CellStatus }])))
+
+    // Warm Google metrics for the WHOLE batch in one Google call, so each card's
+    // core hits cache instead of making its own (25 calls → 1). The first search
+    // pays ~2s here once; repeats warm from cache instantly. Never blocks on error.
+    await fetch(`/api/keywords/google-warm?kws=${encodeURIComponent(keywords.join('|'))}&geo=${geo}`).catch(() => {})
+    if (runId.current !== myRun) return
 
     // Bounded-concurrency queue — each keyword renders the moment it lands.
     const queue = [...keywords]

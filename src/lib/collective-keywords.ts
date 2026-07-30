@@ -15,7 +15,7 @@
  */
 import { connectDB } from '@/lib/db'
 import { CollectiveKeywordData } from '@/lib/models'
-import { CACHE_TTL } from '@/lib/cache'
+import { memCache, cacheKey, CACHE_TTL } from '@/lib/cache'
 import { getKeywordCore } from '@/lib/keywords'
 import type { CollectiveKeywordResult, KeywordSearchResponse } from '@/types'
 
@@ -23,6 +23,12 @@ import type { CollectiveKeywordResult, KeywordSearchResponse } from '@/types'
 function looksComplete(d?: KeywordSearchResponse): boolean {
   return !!d && !!d.stats && d.stats.totalResults != null
 }
+
+// In-memory layer IN FRONT of Mongo. The DB read is the slow step (a cached row
+// still costs a full findOne round-trip), so once a keyword has been searched in
+// this process, serve it from memory and skip Mongo entirely on repeats.
+const memKey = (kw: string, geo: string) => cacheKey('collective', 'v1', geo, kw)
+interface MemEntry { data: KeywordSearchResponse; savedAt: string }
 
 /**
  * Get one keyword's full package for the collective tool.
@@ -34,19 +40,23 @@ function looksComplete(d?: KeywordSearchResponse): boolean {
  */
 export async function getCollectiveKeyword(keyword: string, geo = 'US'): Promise<CollectiveKeywordResult> {
   const kw = keyword.trim().toLowerCase()
+  const mk = memKey(kw, geo)
 
-  // ── DB-first ──────────────────────────────────────────────────────────────
+  // ── Memory-first — instant, and skips the slow Mongo round-trip on repeats ──
+  const mem = memCache.get<MemEntry>(mk)
+  if (mem && looksComplete(mem.data)) {
+    return { keyword: kw, geo, data: mem.data, source: 'cache', savedAt: mem.savedAt }
+  }
+
+  // ── Then Mongo (persists across restarts / other processes) ─────────────────
   try {
     await connectDB()
     const hit = await CollectiveKeywordData.findOne({ keyword: kw, geo }).lean()
     if (hit && hit.expiresAt && new Date(hit.expiresAt).getTime() > Date.now() && looksComplete(hit.data as KeywordSearchResponse)) {
-      return {
-        keyword: kw,
-        geo,
-        data: hit.data as KeywordSearchResponse,
-        source: 'cache',
-        savedAt: new Date(hit.searchedAt ?? hit.updatedAt ?? Date.now()).toISOString(),
-      }
+      const data = hit.data as KeywordSearchResponse
+      const savedAt = new Date(hit.searchedAt ?? hit.updatedAt ?? Date.now()).toISOString()
+      memCache.set(mk, { data, savedAt }, CACHE_TTL.KEYWORD)   // warm memory so the next hit is instant
+      return { keyword: kw, geo, data, source: 'cache', savedAt }
     }
   } catch (e) {
     console.error(`[Collective] DB lookup "${kw}":`, e)
@@ -55,9 +65,12 @@ export async function getCollectiveKeyword(keyword: string, geo = 'US'): Promise
   // ── Live fetch (reuses the shared keyword pipeline + its own cache) ─────────
   const data = await getKeywordCore(kw, geo)
 
+  const now = new Date()
+  const savedAt = now.toISOString()
+  memCache.set(mk, { data, savedAt }, CACHE_TTL.KEYWORD)       // serve repeats from memory, not the slow DB
+
   // Persist this keyword's package. Non-blocking: a failed write must not fail
   // the search — the user still gets live data.
-  const now = new Date()
   const expiresAt = new Date(now.getTime() + CACHE_TTL.KEYWORD * 1000)
   connectDB()
     .then(() => CollectiveKeywordData.findOneAndUpdate(
@@ -67,5 +80,5 @@ export async function getCollectiveKeyword(keyword: string, geo = 'US'): Promise
     ))
     .catch(e => console.error(`[Collective] DB write "${kw}":`, e))
 
-  return { keyword: kw, geo, data, source: 'live', savedAt: now.toISOString() }
+  return { keyword: kw, geo, data, source: 'live', savedAt }
 }

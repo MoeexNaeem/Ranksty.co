@@ -96,6 +96,16 @@ export async function getKeywordCore(query: string, geo = 'US'): Promise<Keyword
     console.error('[Keywords] DB lookup:', e)
   }
 
+  // Google volume/CPC/competition is a SEPARATE API (not behind the Etsy rate
+  // gate), so fire it up front and let it run DURING the Etsy search + analysis
+  // rather than after. It's the slowest single call (worse under 429 retries), so
+  // overlapping it hides its latency instead of adding to it. Caught so a Google
+  // hiccup degrades to "—" instead of failing the whole keyword.
+  const googleP = isGoogleAdsConfigured()
+    ? Promise.all([googleKeywordMetrics([query], geo), googleAccountCurrency()])
+        .catch(e => { console.error('[Keywords] google:', e); return null })
+    : null
+
   // No images on the fast path: the image batch is a second ~1.5s round-trip and
   // only the Top Listings sub-tab renders them. /api/keywords/listings fetches
   // them on demand when that tab is opened.
@@ -107,17 +117,20 @@ export async function getKeywordCore(query: string, geo = 'US'): Promise<Keyword
   data.analysis = await buildSearchAnalysis(listings, false)
     .catch(e => { console.error('[Keywords] analysis:', e); return undefined })
 
-  if (isGoogleAdsConfigured()) {
-    const [metrics, currency] = await Promise.all([googleKeywordMetrics([query], geo), googleAccountCurrency()])
-    const g = metrics.get(query)
+  if (googleP) {
+    const g = await googleP
     if (g) {
-      data.stats.googleSearches         = g.searches ?? null
-      data.stats.googleCompetition      = g.competition as KeywordSearchResponse['stats']['googleCompetition']
-      data.stats.googleCompetitionIndex = g.competitionIndex
-      data.stats.googleCpcLow           = g.cpcLow
-      data.stats.googleCpcHigh          = g.cpcHigh
+      const [metrics, currency] = g
+      const gm = metrics.get(query)
+      if (gm) {
+        data.stats.googleSearches         = gm.searches ?? null
+        data.stats.googleCompetition      = gm.competition as KeywordSearchResponse['stats']['googleCompetition']
+        data.stats.googleCompetitionIndex = gm.competitionIndex
+        data.stats.googleCpcLow           = gm.cpcLow
+        data.stats.googleCpcHigh          = gm.cpcHigh
+      }
+      data.stats.googleCurrency = currency
     }
-    data.stats.googleCurrency = currency
   }
 
   memCache.set(key, data, CACHE_TTL.KEYWORD)

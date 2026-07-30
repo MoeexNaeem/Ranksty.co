@@ -9,8 +9,12 @@
 import { useEffect, useRef } from 'react'
 
 const SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? ''
-/** Whether the widget is live — callers use this to require a token before submit. */
-export const RECAPTCHA_ENABLED = !!SITE_KEY
+/**
+ * Whether the widget is live — callers use this to require a token before submit.
+ * Captcha has been REMOVED from Ranktsy: forced off so no login/signup widget or
+ * token is ever required, regardless of environment keys.
+ */
+export const RECAPTCHA_ENABLED = false
 
 interface Grecaptcha {
   render: (el: HTMLElement, opts: {
