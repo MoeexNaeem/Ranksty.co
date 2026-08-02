@@ -5,12 +5,14 @@ import { Card, SectionTitle, ErrorBox, EmptyState, primaryBtn, MONO } from '../k
 import { KeywordTable } from '../KeywordTable'
 import { TopListingsTable } from '../keyword/TopListingsTable'
 import { C, D, formatNumber } from '@/utils'
-import type { CollectiveKeywordResult, KeywordStats, KeywordData, EtsyListing } from '@/types'
+import type { CollectiveKeywordResult, KeywordStats, EtsyListing } from '@/types'
 
 const MAX_KEYWORDS = 25
-// 6 keywords in flight keeps the global Etsy rate gate saturated so the batch
-// finishes sooner; cached keywords return instantly regardless.
-const CONCURRENCY  = 6
+// Each keyword now fetches its COMPLETE package (core + related competition probes
+// + a review per listing) before its card appears, so concurrency is kept low: too
+// many at once make them contend for the shared 8/sec Etsy gate and risk per-request
+// timeouts. Cached keywords still return instantly regardless.
+const CONCURRENCY  = 3
 
 // Country filter — Google volume/CPC/competition are geo-specific, and the
 // selected country also sets the currency Etsy prices are converted to.
@@ -147,21 +149,9 @@ function KeywordCard({ keyword, cell, geo }: { keyword: string; cell: Cell; geo:
   const target = GEO_CURRENCY[geo] ?? 'USD'
   const rates = useRates(data, target)
 
-  // Related keywords' competition / KD / Google metrics are the expensive stage
-  // (a live Etsy search per related keyword). Fetch it only when the card is
-  // opened — the same enrichment the single Keyword tool loads separately.
-  const [related, setRelated] = useState<KeywordData[] | null>(null)
-  const [relLoading, setRelLoading] = useState(false)
-  useEffect(() => {
-    if (!open || related || relLoading || !data?.related?.length) return
-    setRelLoading(true)
-    fetch(`/api/keywords/related?q=${encodeURIComponent(keyword)}&geo=${geo}`)
-      .then(r => r.json())
-      .then(j => { if (j.success && Array.isArray(j.data)) setRelated(j.data) })
-      .catch(() => {})
-      .finally(() => setRelLoading(false))
-  }, [open, related, relLoading, data, keyword, geo])
-
+  // No lazy enrichment: the saved package is already COMPLETE (related keywords
+  // carry competition/KD/Google, and every listing carries its review count), so
+  // the card renders everything straight from `data`.
   const convertedListings = useMemo(
     () => (data?.listings ? convertListings(data.listings, target, rates) : []),
     [data, target, rates],
@@ -212,10 +202,8 @@ function KeywordCard({ keyword, cell, geo }: { keyword: string; cell: Cell; geo:
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 4 }}>
               {data.related?.length > 0 && (
                 <div>
-                  <SectionTitle right={relLoading ? <span style={{ fontSize: 11, fontFamily: MONO, color: C.stone }}>measuring competition & Google data…</span> : undefined}>
-                    Related keywords
-                  </SectionTitle>
-                  <KeywordTable rows={related ?? data.related} query={keyword} currency={s.googleCurrency ?? null} measuring={relLoading && !related} />
+                  <SectionTitle>Related keywords</SectionTitle>
+                  <KeywordTable rows={data.related} query={keyword} currency={s.googleCurrency ?? null} />
                 </div>
               )}
               {data.listings?.length > 0 && (
@@ -254,11 +242,10 @@ export function CollectiveKeywordsTab() {
     setOrder(keywords)
     setCells(Object.fromEntries(keywords.map(k => [k, { status: 'loading' as CellStatus }])))
 
-    // Warm Google metrics for the WHOLE batch in one Google call, so each card's
-    // core hits cache instead of making its own (25 calls → 1). The first search
-    // pays ~2s here once; repeats warm from cache instantly. Never blocks on error.
-    await fetch(`/api/keywords/google-warm?kws=${encodeURIComponent(keywords.join('|'))}&geo=${geo}`).catch(() => {})
-    if (runId.current !== myRun) return
+    // NOTE: no Google "warm" pre-call here. Saved keywords serve entirely from the
+    // DB (zero API calls on repeat), and for a genuinely new keyword getKeywordCore
+    // fetches its own Google metrics in parallel with the Etsy search anyway — so a
+    // batch warm would only ever add a redundant Google call on repeat searches.
 
     // Bounded-concurrency queue — each keyword renders the moment it lands.
     const queue = [...keywords]

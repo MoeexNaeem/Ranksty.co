@@ -71,7 +71,7 @@ function isStaleCore(d?: KeywordSearchResponse): boolean {
  * 100-listing sample genuinely cannot know how many listings compete for a tag
  * across all of Etsy. getRelated() probes it for real.
  */
-export async function getKeywordCore(query: string, geo = 'US'): Promise<KeywordSearchResponse> {
+export async function getKeywordCore(query: string, geo = 'US', force = false): Promise<KeywordSearchResponse> {
   const key = coreKey(query, geo)
 
   // Kick the taxonomy fetch off in the background on every request. It's needed
@@ -79,21 +79,25 @@ export async function getKeywordCore(query: string, geo = 'US'): Promise<Keyword
   // it now means it's usually ready before anyone opens the Analysis tab.
   warmTaxonomy()
 
-  const memHit = memCache.get<KeywordSearchResponse>(key)
-  if (memHit && !isStaleCore(memHit)) return memHit
+  // `force` (used by the weekly refresh cron) bypasses BOTH caches so the data is
+  // truly re-fetched live; otherwise serve mem → DB when fresh.
+  if (!force) {
+    const memHit = memCache.get<KeywordSearchResponse>(key)
+    if (memHit && !isStaleCore(memHit)) return memHit
 
-  try {
-    await connectDB()
-    const dbHit = await KeywordCache.findOne({ keyword: query, geo }).lean()
-    if (dbHit) {
-      const data = dbHit.data as KeywordSearchResponse
-      if (!isStaleCore(data)) {
-        memCache.set(key, data, CACHE_TTL.KEYWORD)
-        return data
+    try {
+      await connectDB()
+      const dbHit = await KeywordCache.findOne({ keyword: query, geo }).lean()
+      if (dbHit) {
+        const data = dbHit.data as KeywordSearchResponse
+        if (!isStaleCore(data)) {
+          memCache.set(key, data, CACHE_TTL.KEYWORD)
+          return data
+        }
       }
+    } catch (e) {
+      console.error('[Keywords] DB lookup:', e)
     }
-  } catch (e) {
-    console.error('[Keywords] DB lookup:', e)
   }
 
   // Google volume/CPC/competition is a SEPARATE API (not behind the Etsy rate

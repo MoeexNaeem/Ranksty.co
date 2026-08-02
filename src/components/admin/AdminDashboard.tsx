@@ -9,6 +9,7 @@ interface AUser {
   isVerified: boolean; createdAt: string | null; searches: number; lastActive: string | null; etsyShopId: string | null
 }
 interface Stats { total: number; admins: number; verified: number; searches: number }
+interface SysStats { keywordsSaved: number; etsyToday: number; googleToday: number; day: string }
 
 const GRID = '2.2fr 0.9fr 0.85fr 0.7fr 0.9fr 0.6fr'
 const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: '2-digit' }) : '—'
@@ -26,6 +27,7 @@ const selectStyle: React.CSSProperties = {
 export function AdminDashboard() {
   const [users, setUsers] = useState<AUser[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
+  const [sys, setSys] = useState<SysStats | null>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'forbidden' | 'error'>('loading')
   const [busy, setBusy] = useState<string | null>(null)
   const [err, setErr] = useState('')
@@ -38,6 +40,11 @@ export function AdminDashboard() {
       if (r.ok && d?.success) { setUsers(d.data.users); setStats(d.data.stats); setState('ok') }
       else setState('error')
     }).catch(() => setState('error'))
+    // System stats (keywords saved + API usage) — independent of the user list.
+    fetch('/api/admin/stats').then(async r => {
+      const d = await r.json().catch(() => null)
+      if (r.ok && d?.success) setSys(d.data)
+    }).catch(() => {})
   }, [])
   useEffect(load, [load])
 
@@ -91,6 +98,15 @@ export function AdminDashboard() {
           <StatCard label="Total searches" value={formatNumber(stats.searches)} accent={C.ink} />
         </div>
       )}
+
+      <div style={{ marginBottom: 26 }}>
+        <SectionTitle right={sys ? <span style={{ fontSize: 10.5, fontFamily: MONO, color: '#808080' }}>today · {sys.day}</span> : undefined}>System &amp; API usage</SectionTitle>
+        <div className="rgrid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+          <StatCard label="Keywords saved" value={sys ? formatNumber(sys.keywordsSaved) : '—'} accent={C.orange} />
+          <StatCard label="Etsy API calls (today)" value={sys ? formatNumber(sys.etsyToday) : '—'} accent={C.ink} />
+          <StatCard label="Google API calls (today)" value={sys ? formatNumber(sys.googleToday) : '—'} accent={C.ink} />
+        </div>
+      </div>
 
       <SectionTitle right={err ? <span style={{ fontSize: 12, color: C.danger }}>{err}</span> : <span style={{ fontSize: 10.5, fontFamily: MONO, color: '#808080' }}>{users.length} users</span>}>All users</SectionTitle>
       <div className="rtable" style={tableCard}>

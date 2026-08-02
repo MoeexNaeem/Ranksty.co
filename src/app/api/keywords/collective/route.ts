@@ -4,6 +4,10 @@ import { getCollectiveKeyword } from '@/lib/collective-keywords'
 import type { ApiResponse, CollectiveKeywordResult } from '@/types'
 
 export const runtime = 'nodejs'
+// A cold keyword now builds its FULL package (core + related probes + reviews),
+// which can take a while behind the Etsy rate gate. Allow a long run (Vercel Pro
+// caps at 300s; hobby at 60s).
+export const maxDuration = 300
 
 /**
  * Collective Keyword Search — one keyword's full package.

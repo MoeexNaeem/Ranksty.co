@@ -374,6 +374,9 @@ export interface KeywordSearchResponse {
   listings: EtsyListing[]
   analysis?: SearchAnalysis
   nearMatches?: NearMatch[]
+  /** Full trends payload (Search Trends + Searchers by Country + supply/market),
+   *  saved into the Collective package so it renders from the DB with no API calls. */
+  trends?: TrendsPayload
   cachedAt?: string
 }
 
@@ -397,6 +400,9 @@ export interface EtsyListing {
   created_timestamp?: number   // epoch seconds; listing age → views/day
   processing_min?: number      // seller's stated processing window, in days
   processing_max?: number
+  /** Real Etsy review count for this listing. Saved into the Collective package so
+   *  the Reviews column is instant on repeat; null when the probe failed. */
+  review_count?: number | null
 }
 
 export interface EtsyShop {
@@ -434,6 +440,17 @@ export interface TrendPoint { month: string; value: number }
 export type TrendPlatform = 'etsy' | 'google' | 'amazon' | 'ebay'
 export interface TrendData { platform: TrendPlatform; points: TrendPoint[] }
 export interface CountryData { country: string; percentage: number; color: string }
+
+// The full payload the /api/trends endpoint returns — saved into the Collective
+// package so Trends + Searchers-by-Country render from the DB with no API calls.
+export interface TrendsPayload {
+  trends: TrendData[]
+  countries: CountryData[]
+  supplyByMonth: { month: string; value: number }[]
+  market: ListingMarketStats | null
+  googleAvailable: boolean
+  note: string
+}
 
 // ─── Snapshots (our own history — Etsy returns state, never a series) ─────────
 // Etsy exposes a shop's LIFETIME sales total and nothing else: no per-day series,
@@ -543,15 +560,26 @@ export interface IKeywordHistory {
 
 // ─── Collective Keyword Data ──────────────────────────────────────────────────
 // One full keyword "package" per {keyword, geo}, saved by the Collective Keyword
-// Search tool. Read DB-first so a repeat search skips the live API calls (within
-// the compliance TTL). `data` is the same shape a single Keywords search returns.
+// Search tool. PERMANENT — no expiry. A repeat search is always served from here
+// (no live API calls); the weekly refresh cron keeps `data` current and stamps
+// `lastRefreshedAt`. `data` is the same shape a single Keywords search returns.
 export interface ICollectiveKeywordData {
   _id?: string
   keyword: string
   geo: string
   data: KeywordSearchResponse
   searchedAt: Date
-  expiresAt: Date
+  lastRefreshedAt: Date
+  createdAt?: Date
+  updatedAt?: Date
+}
+
+// ─── API Usage (daily) ────────────────────────────────────────────────────────
+export interface IApiUsage {
+  _id?: string
+  day: string          // YYYY-MM-DD (UTC)
+  etsyCalls: number
+  googleCalls: number
   createdAt?: Date
   updatedAt?: Date
 }

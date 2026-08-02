@@ -11,6 +11,7 @@
  *   GET /v3/application/shops/{shop_id}/listings/active → shop listings
  */
 import { recordShopSnapshots, recordListingSnapshots, recordShopSnapshot } from '@/lib/snapshots'
+import { recordEtsyCall } from '@/lib/usage'
 import type {
   EtsyListing, EtsyShop, KeywordData,
   KeywordSearchResponse, TrendData, CountryData,
@@ -70,6 +71,7 @@ async function etsyFetch<T = unknown>(path: string, params?: Record<string, stri
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     await rateGate()
+    recordEtsyCall()   // count every Etsy HTTP request (incl. retries)
     const res = await fetch(url.toString(), {
       headers: {
         'x-api-key': ETSY_KEY_HEADER,
@@ -159,7 +161,7 @@ function mapListing(item: Record<string, any>): EtsyListing {
 // them in a single batch call to /listings/batch?includes=Images,Shop (up to 100
 // ids) and merge them back onto the listings by listing_id.
 
-async function attachImages(listings: EtsyListing[]): Promise<EtsyListing[]> {
+export async function attachImages(listings: EtsyListing[]): Promise<EtsyListing[]> {
   const ids = listings.map(l => l.listing_id).filter(Boolean)
   if (!ids.length) return listings
   try {
@@ -1183,6 +1185,7 @@ class EtsyAuthError extends Error {
 async function etsyAuthedFetch<T = unknown>(path: string, accessToken: string, params?: Record<string, string | number>): Promise<T> {
   const url = new URL(`${ETSY_BASE}${path}`)
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)))
+  recordEtsyCall()   // count authenticated (shop) Etsy requests too
   const res = await fetch(url.toString(), {
     headers: {
       'x-api-key':     ETSY_KEY_HEADER,

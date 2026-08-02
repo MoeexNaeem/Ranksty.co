@@ -3,7 +3,7 @@ import { SNAPSHOT_RETENTION_DAYS } from '@/utils'
 import type {
   IKeywordCache, IKeywordHistory, IOTP,
   IShopSnapshot, IListingSnapshot, ITrackedShop,
-  ICollectiveKeywordData,
+  ICollectiveKeywordData, IApiUsage,
 } from '@/types'
 
 // ─── User ─────────────────────────────────────────────────────────────────────
@@ -64,20 +64,30 @@ KeywordCacheSchema.index({ keyword: 1, geo: 1, createdAt: -1 })
 // ─── Collective Keyword Data ───────────────────────────────────────────────────
 // The Collective Keyword Search tool saves each searched keyword's FULL package
 // (the same KeywordSearchResponse a single search returns) as its own document.
-// A later search reads this first and, if the row is still fresh, serves it
-// without any Etsy/Google API calls. `expiresAt` enforces the same freshness
-// bound as the main keyword cache — Etsy's terms don't allow serving their data
-// as current indefinitely, so a stale row is treated as a miss and refetched.
+// PERMANENT: there is no TTL — a saved keyword is served from the DB indefinitely
+// (no repeat Etsy/Google calls). Freshness is maintained instead by the weekly
+// refresh cron (/api/cron/refresh-collective), which re-fetches each keyword and
+// updates it; `lastRefreshedAt` records when that last happened.
 const CollectiveKeywordDataSchema = new Schema<ICollectiveKeywordData>({
-  keyword:    { type: String, required: true, lowercase: true, trim: true },
-  geo:        { type: String, default: 'US', uppercase: true, trim: true },
-  data:       { type: Schema.Types.Mixed, required: true },
-  searchedAt: { type: Date, default: Date.now },
-  expiresAt:  { type: Date, required: true, index: { expireAfterSeconds: 0 } },
+  keyword:         { type: String, required: true, lowercase: true, trim: true },
+  geo:             { type: String, default: 'US', uppercase: true, trim: true },
+  data:            { type: Schema.Types.Mixed, required: true },
+  searchedAt:      { type: Date, default: Date.now },
+  lastRefreshedAt: { type: Date, default: Date.now },
 }, { timestamps: true })
 
 // One package per keyword per country — makes the DB-first upsert idempotent.
 CollectiveKeywordDataSchema.index({ keyword: 1, geo: 1 }, { unique: true })
+
+// ─── API Usage (daily counters) ────────────────────────────────────────────────
+// One row per UTC day, counting how many Etsy / Google API calls were made that
+// day. Powers the admin dashboard's usage stats. Incremented via lib/usage.ts,
+// which coalesces many calls into a single $inc so the (slow) DB isn't hit per call.
+const ApiUsageSchema = new Schema<IApiUsage>({
+  day:         { type: String, required: true, unique: true },   // YYYY-MM-DD (UTC)
+  etsyCalls:   { type: Number, default: 0 },
+  googleCalls: { type: Number, default: 0 },
+}, { timestamps: true })
 
 // ─── Search History ────────────────────────────────────────────────────────────
 const KeywordHistorySchema = new Schema<IKeywordHistory>({
@@ -165,3 +175,4 @@ export const OTP           = models.OTP           ?? model<IOTP>('OTP', OTPSchem
 export const KeywordCache  = models.KeywordCache  ?? model<IKeywordCache>('KeywordCache', KeywordCacheSchema)
 export const KeywordHistory= models.KeywordHistory?? model<IKeywordHistory>('KeywordHistory', KeywordHistorySchema)
 export const CollectiveKeywordData = models.CollectiveKeywordData ?? model<ICollectiveKeywordData>('CollectiveKeywordData', CollectiveKeywordDataSchema)
+export const ApiUsage      = models.ApiUsage      ?? model<IApiUsage>('ApiUsage', ApiUsageSchema)

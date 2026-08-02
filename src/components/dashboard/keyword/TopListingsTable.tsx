@@ -80,12 +80,22 @@ export const TopListingsTable = memo(function TopListingsTable({ listings, query
     })
   }, [listings, nowSec])
 
-  // Real per-listing review counts (a verified sold-floor) — fetched lazily so the
-  // table paints immediately and the Reviews column fills in.
-  const ids = useMemo(() => listings.map(l => l.listing_id), [listings])
+  // Real per-listing review counts (a verified sold-floor). Collective packages
+  // save the count on every listing, so prefer those and skip the network entirely
+  // (instant). Only when they're absent — e.g. the single Keyword tool, whose
+  // listings don't carry them — fall back to a lazy fetch, capped to the top rows
+  // (each id is its own Etsy call, so fetching all ~100 floods the shared gate).
+  const REVIEW_CAP = 30
+  const storedReviews = useMemo(() => {
+    const m: Record<number, number | null> = {}
+    let has = false
+    for (const l of listings) { if (l.review_count != null) { m[l.listing_id] = l.review_count; has = true } }
+    return has ? m : null
+  }, [listings])
+  const ids = useMemo(() => storedReviews ? [] : listings.slice(0, REVIEW_CAP).map(l => l.listing_id), [listings, storedReviews])
   const reviewsQ = useListingReviews(ids)
-  const reviews = reviewsQ.data
-  const reviewsLoading = reviewsQ.isPending || reviewsQ.isFetching
+  const reviews = storedReviews ?? reviewsQ.data
+  const reviewsLoading = !storedReviews && (reviewsQ.isPending || reviewsQ.isFetching)
 
   const cols = useMemo(() => ALL_COLS.filter(c => !hidden.has(c.id)), [hidden])
   const grid = useMemo(() => cols.map(c => c.width).join(' ') + ' 34px', [cols])

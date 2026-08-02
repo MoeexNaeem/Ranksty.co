@@ -25,6 +25,7 @@
  * thrown below names the variable so the fix is obvious from the logs.
  */
 import { memCache, cacheKey, CACHE_TTL } from '@/lib/cache'
+import { recordGoogleCall } from '@/lib/usage'
 
 const V = process.env.GOOGLE_ADS_API_VERSION || 'v24'
 const digits = (s?: string) => (s ?? '').replace(/\D/g, '')
@@ -48,6 +49,7 @@ export const GEO_TARGETS: Record<string, { id: string; name: string; color: stri
   AU: { id: '2036', name: 'Australia', color: '#B9791A' },
   DE: { id: '2276', name: 'Germany', color: '#5A5A5A' },
   FR: { id: '2250', name: 'France', color: '#CF463A' },
+  IN: { id: '2356', name: 'India', color: '#2E7D32' },
 }
 
 // ─── User-selectable country filter (like eRank's) → geoTargetConstant ─────────
@@ -80,6 +82,7 @@ let cachedToken: { token: string; expiresAt: number } | null = null
 
 async function getAccessToken(): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.token
+  recordGoogleCall()
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -130,6 +133,7 @@ async function historicalMetrics(keywords: string[], geoId: string | null): Prom
   const loginId = digits(process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID)
   if (loginId) headers['login-customer-id'] = loginId
 
+  recordGoogleCall()
   const res = await fetch(
     `https://googleads.googleapis.com/${V}/customers/${customerId}:generateKeywordHistoricalMetrics`,
     {
@@ -237,6 +241,18 @@ export async function googleCountryBreakdown(keyword: string): Promise<{ country
   }
 }
 
+/**
+ * Searchers-by-Country SCOPED to the selected country filter:
+ *   • Global ('GLO') → the full breakdown across all tracked countries.
+ *   • a specific country → just that country at 100% (no Google calls needed).
+ */
+export async function countriesForGeo(keyword: string, geo: string): Promise<{ country: string; percentage: number; color: string }[]> {
+  if (geo === 'GLO') return googleCountryBreakdown(keyword)
+  const name = KEYWORD_GEOS[geo]?.name ?? geo
+  const color = GEO_TARGETS[geo]?.color ?? '#FB5E09'
+  return [{ country: name, percentage: 100, color }]
+}
+
 // ─── Account currency (cached for the process) ────────────────────────────────
 // CPC bids come back in the Ads account's OWN currency with no code attached, so
 // every CPC we show has to be labelled with this. Cached because it never changes
@@ -257,6 +273,7 @@ export async function googleAccountCurrency(): Promise<string | null> {
     const loginId = digits(process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID)
     if (loginId) headers['login-customer-id'] = loginId
 
+    recordGoogleCall()
     const res = await fetch(`https://googleads.googleapis.com/${V}/customers/${customerId}/googleAds:searchStream`, {
       method: 'POST', headers, cache: 'no-store',
       body: JSON.stringify({ query: 'SELECT customer.currency_code FROM customer LIMIT 1' }),
@@ -302,6 +319,7 @@ export async function googleKeywordIdeas(seed: string, geoIso = 'US', limit = 40
     const loginId = digits(process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID)
     if (loginId) headers['login-customer-id'] = loginId
 
+    recordGoogleCall()
     const res = await fetch(`https://googleads.googleapis.com/${V}/customers/${customerId}:generateKeywordIdeas`, {
       method: 'POST', headers, cache: 'no-store',
       body: JSON.stringify({
