@@ -7,7 +7,7 @@ import { TopListingsTable } from '../keyword/TopListingsTable'
 import { C, D, formatNumber } from '@/utils'
 import type { CollectiveKeywordResult, KeywordStats, EtsyListing } from '@/types'
 
-const MAX_KEYWORDS = 25
+const MAX_KEYWORDS = 500
 // Each keyword now fetches its COMPLETE package (core + related competition probes
 // + a review per listing) before its card appears, so concurrency is kept low: too
 // many at once make them contend for the shared 8/sec Etsy gate and risk per-request
@@ -24,6 +24,13 @@ const COUNTRIES = [
 ]
 // Selected country → the currency listing prices are shown in.
 const GEO_CURRENCY: Record<string, string> = { US: 'USD', GB: 'GBP', AU: 'AUD', CA: 'CAD', FR: 'EUR', DE: 'EUR', IN: 'INR', GLO: 'USD' }
+
+// Auto-cycle order: every batch is run against ALL of these countries, back to
+// back, so one click saves each keyword's geo-specific package for every market.
+// Google volume/CPC/competition are country-specific, so this genuinely produces
+// a distinct saved row per country. Order requested: Global → UK → US → the rest.
+const CYCLE_ORDER = ['GLO', 'GB', 'US', 'AU', 'CA', 'FR', 'DE', 'IN'] as const
+const CODE_NAME: Record<string, string> = Object.fromEntries(COUNTRIES.map(c => [c.code, c.name]))
 
 const CUR: Record<string, string> = { USD: '$', GBP: '£', EUR: '€', CAD: 'C$', AUD: 'A$', PKR: '₨', INR: '₹', JPY: '¥' }
 const sym = (c?: string | null) => CUR[(c ?? 'USD').toUpperCase()] ?? (c ? `${c} ` : '$')
@@ -222,140 +229,278 @@ function KeywordCard({ keyword, cell, geo }: { keyword: string; cell: Cell; geo:
   )
 }
 
+// ─── Progress state ───────────────────────────────────────────────────────────
+// Per-country tally as the batch cycles through the countries. `total` is the
+// keyword count for the run; done/cache/live/fail sum to it once the country is
+// finished.
+interface GeoProg { done: number; cache: number; live: number; fail: number }
+const emptyProg = (): GeoProg => ({ done: 0, cache: 0, live: 0, fail: 0 })
+
+// One completed keyword kept for the live "latest results" feed (full package, so
+// the existing KeywordCard renders it). Only the newest few are retained.
+interface RecentItem { key: string; keyword: string; geo: string; result: CollectiveKeywordResult }
+// Lightweight per-(keyword,country) row kept for the CSV export. Full packages are
+// NOT retained for every one — a 500×8 run would be thousands of listing arrays in
+// memory — only these small stat rows are.
+interface CsvRow { keyword: string; geo: string; source: string; s: KeywordStats | null }
+
+const RECENT_MAX = 6
+
+function Bar({ pct, color }: { pct: number; color: string }) {
+  return (
+    <div style={{ height: 10, borderRadius: 100, background: C.canvas, overflow: 'hidden' }}>
+      <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, pct))}%`, background: color, borderRadius: 100, transition: 'width 0.25s ease' }} />
+    </div>
+  )
+}
+
 // ─── Tab ──────────────────────────────────────────────────────────────────────
 export function CollectiveKeywordsTab() {
-  const [input, setInput]     = useState('')
-  const [geo, setGeo]         = useState('US')
-  const [order, setOrder]     = useState<string[]>([])
-  const [cells, setCells]     = useState<Record<string, Cell>>({})
-  const [running, setRunning] = useState(false)
-  const runId = useRef(0)
+  const [input, setInput]         = useState('')
+  const [keywords, setKeywords]   = useState<string[]>([])   // the keyword set for the active/last run
+  const [running, setRunning]     = useState(false)
+  const [geoIndex, setGeoIndex]   = useState(0)              // which country in CYCLE_ORDER is running now
+  const [perGeo, setPerGeo]       = useState<Record<string, GeoProg>>({})
+  const [overallDone, setOverall] = useState(0)             // keyword×country ops completed across the whole run
+  const [recent, setRecent]       = useState<RecentItem[]>([])
+  const runId  = useRef(0)
+  const csvRef = useRef<CsvRow[]>([])                        // every collected row, for CSV (no re-render churn)
 
   const pending = useMemo(() => parseKeywords(input), [input])
+  // How many the user actually typed, before the 500 cap — so we can warn when capped.
+  const rawCount = useMemo(
+    () => new Set(input.split(/[\n,]/).map(k => k.trim().toLowerCase()).filter(k => k.length >= 2)).size,
+    [input],
+  )
 
   const run = useCallback(async () => {
-    const keywords = parseKeywords(input)
-    if (!keywords.length) return
+    const kws = parseKeywords(input)
+    if (!kws.length) return
 
     const myRun = ++runId.current
+    csvRef.current = []
+    setKeywords(kws)
     setRunning(true)
-    setOrder(keywords)
-    setCells(Object.fromEntries(keywords.map(k => [k, { status: 'loading' as CellStatus }])))
+    setGeoIndex(0)
+    setOverall(0)
+    setRecent([])
+    setPerGeo(Object.fromEntries(CYCLE_ORDER.map(g => [g, emptyProg()])))
 
-    // NOTE: no Google "warm" pre-call here. Saved keywords serve entirely from the
-    // DB (zero API calls on repeat), and for a genuinely new keyword getKeywordCore
-    // fetches its own Google metrics in parallel with the Etsy search anyway — so a
-    // batch warm would only ever add a redundant Google call on repeat searches.
+    // Countries run one after another (sequential); keywords WITHIN a country run
+    // with bounded concurrency. Already-saved keywords return from the DB instantly
+    // (source: 'cache'), so re-running a batch — or resuming after a close — mostly
+    // skips the API and only fills genuine gaps.
+    for (let gi = 0; gi < CYCLE_ORDER.length; gi++) {
+      if (runId.current !== myRun) return          // a newer run (or Stop) superseded this
+      const geo = CYCLE_ORDER[gi]
+      setGeoIndex(gi)
 
-    // Bounded-concurrency queue — each keyword renders the moment it lands.
-    const queue = [...keywords]
-    const worker = async () => {
-      while (queue.length) {
-        if (runId.current !== myRun) return // a newer search superseded this one
-        const kw = queue.shift()
-        if (!kw) return
-        try {
-          const res = await fetch(`/api/keywords/collective?q=${encodeURIComponent(kw)}&geo=${geo}`)
-          const json = await res.json()
+      const queue = [...kws]
+      const worker = async () => {
+        while (queue.length) {
           if (runId.current !== myRun) return
-          if (json.success && json.data) {
-            setCells(prev => ({ ...prev, [kw]: { status: 'done', result: json.data } }))
-          } else {
-            setCells(prev => ({ ...prev, [kw]: { status: 'error', error: json.error ?? 'Failed' } }))
+          const kw = queue.shift()
+          if (!kw) return
+
+          let source = 'error'
+          let result: CollectiveKeywordResult | null = null
+          try {
+            const res = await fetch(`/api/keywords/collective?q=${encodeURIComponent(kw)}&geo=${geo}`)
+            const json = await res.json()
+            if (runId.current !== myRun) return
+            if (json.success && json.data) { result = json.data as CollectiveKeywordResult; source = result.source }
+          } catch { /* leaves source = 'error' */ }
+          if (runId.current !== myRun) return
+
+          csvRef.current.push({ keyword: kw, geo, source, s: result?.data.stats ?? null })
+          const ok = !!result
+          setPerGeo(prev => {
+            const p = prev[geo] ?? emptyProg()
+            return { ...prev, [geo]: {
+              done:  p.done + 1,
+              cache: p.cache + (ok && source === 'cache' ? 1 : 0),
+              live:  p.live  + (ok && source === 'live'  ? 1 : 0),
+              fail:  p.fail  + (ok ? 0 : 1),
+            } }
+          })
+          setOverall(d => d + 1)
+          // Only newly-fetched (live) keywords join the feed. Cache hits return in a
+          // burst on re-runs; feeding them would remount the cards thousands of times
+          // and jank the tab. The progress bars still reflect cache hits.
+          if (result && source === 'live') {
+            setRecent(prev => [{ key: `${geo}:${kw}`, keyword: kw, geo, result }, ...prev].slice(0, RECENT_MAX))
           }
-        } catch {
-          if (runId.current !== myRun) return
-          setCells(prev => ({ ...prev, [kw]: { status: 'error', error: 'Network error' } }))
         }
       }
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker))
     }
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker))
-    if (runId.current === myRun) setRunning(false)
-  }, [input, geo])
 
-  const done      = order.filter(k => cells[k]?.status === 'done')
-  const fromCache = done.filter(k => cells[k]?.result?.source === 'cache').length
-  const live      = done.filter(k => cells[k]?.result?.source === 'live').length
+    if (runId.current === myRun) setRunning(false)
+  }, [input])
+
+  const stop  = useCallback(() => { runId.current++; setRunning(false) }, [])
+  const clear = useCallback(() => {
+    runId.current++
+    setRunning(false); setInput(''); setKeywords([]); setPerGeo({}); setOverall(0); setRecent([])
+    csvRef.current = []
+  }, [])
+
+  const totalOps  = keywords.length * CYCLE_ORDER.length
+  const overallPct = totalOps ? (overallDone / totalOps) * 100 : 0
+  const curGeo     = CYCLE_ORDER[geoIndex]
+  const curProg    = perGeo[curGeo] ?? emptyProg()
+  const totCache   = Object.values(perGeo).reduce((n, p) => n + p.cache, 0)
+  const totLive    = Object.values(perGeo).reduce((n, p) => n + p.live, 0)
+  const totFail    = Object.values(perGeo).reduce((n, p) => n + p.fail, 0)
+  const started    = keywords.length > 0
 
   const exportCsv = useCallback(() => {
-    const head = ['Keyword', 'Source', 'Google Volume', 'Ad Competition', 'CPC Low', 'CPC High', 'CPC Currency', 'Etsy Competition', 'Difficulty', 'Difficulty Label', 'Avg Views', 'Favs/View %', 'Avg Price', 'Price Currency']
-    const rows = order.map(k => {
-      const r = cells[k]?.result
-      const s = r?.data.stats
-      if (!s) return [k, cells[k]?.status ?? '', '', '', '', '', '', '', '', '', '', '', '', '']
-      return [k, r!.source, s.googleSearches ?? '', s.googleCompetition ?? '', s.googleCpcLow ?? '', s.googleCpcHigh ?? '', s.googleCurrency ?? '', s.totalResults ?? '', s.difficulty ?? '', s.difficultyLabel ?? '', s.avgViews ?? '', s.favPerView ?? '', s.avgPrice ?? '', s.currency ?? '']
-    })
+    const head = ['Keyword', 'Country', 'Currency (geo)', 'Source', 'Google Volume', 'Ad Competition', 'CPC Low', 'CPC High', 'CPC Currency', 'Etsy Competition', 'Difficulty', 'Difficulty Label', 'Avg Views', 'Favs/View %', 'Avg Price', 'Price Currency']
+    const rows = csvRef.current.map(({ keyword, geo, source, s }) => (
+      s
+        ? [keyword, CODE_NAME[geo] ?? geo, GEO_CURRENCY[geo] ?? '', source, s.googleSearches ?? '', s.googleCompetition ?? '', s.googleCpcLow ?? '', s.googleCpcHigh ?? '', s.googleCurrency ?? '', s.totalResults ?? '', s.difficulty ?? '', s.difficultyLabel ?? '', s.avgViews ?? '', s.favPerView ?? '', s.avgPrice ?? '', s.currency ?? '']
+        : [keyword, CODE_NAME[geo] ?? geo, GEO_CURRENCY[geo] ?? '', source, '', '', '', '', '', '', '', '', '', '', '', '']
+    ))
     const csv = [head, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
     const a = document.createElement('a')
-    a.href = url; a.download = `collective-keywords-${geo}.csv`; a.click()
+    a.href = url; a.download = `collective-keywords-all-countries.csv`; a.click()
     URL.revokeObjectURL(url)
-  }, [order, cells, geo])
+  }, [])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Input */}
       <Card style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <SectionTitle>Search up to {MAX_KEYWORDS} keywords at once</SectionTitle>
+        <SectionTitle>Search up to {MAX_KEYWORDS} keywords across every country</SectionTitle>
         <p style={{ fontSize: 13, color: C.graphite, lineHeight: 1.5, marginTop: -6 }}>
-          Enter one keyword per line (or comma-separated). Every keyword is measured live against the Etsy &amp; Google
-          APIs and its full data package is saved — so searching the same keyword again is instant and skips the API call.
+          Paste one keyword per line (or comma-separated) — up to {MAX_KEYWORDS}. Hit Start and sit back: the batch runs
+          against <strong style={{ color: C.ink }}>all {CYCLE_ORDER.length} countries automatically</strong>
+          {' '}({CYCLE_ORDER.map(g => CODE_NAME[g]).join(' → ')}), saving each keyword&apos;s full data package per country.
+          Already-saved keywords return instantly from the database, so you can safely re-run to fill any gaps.
         </p>
         <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
+          disabled={running}
           placeholder={'personalized necklace\ncustom mug\nboho wall art\n…'}
-          rows={6}
-          style={{ width: '100%', resize: 'vertical', background: C.snow, border: `1px solid ${C.ash}`, borderRadius: 12, padding: '14px 16px', fontSize: 15, fontFamily: 'inherit', color: C.ink, outline: 'none', lineHeight: 1.6 }}
+          rows={7}
+          style={{ width: '100%', resize: 'vertical', background: C.snow, border: `1px solid ${C.ash}`, borderRadius: 12, padding: '14px 16px', fontSize: 15, fontFamily: 'inherit', color: C.ink, outline: 'none', lineHeight: 1.6, opacity: running ? 0.7 : 1 }}
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12.5, fontFamily: MONO, color: pending.length > MAX_KEYWORDS ? D.hard : C.graphite }}>
+          <span style={{ fontSize: 12.5, fontFamily: MONO, color: rawCount > MAX_KEYWORDS ? D.hard : C.graphite }}>
             {pending.length} / {MAX_KEYWORDS} keyword{pending.length === 1 ? '' : 's'}
+            {rawCount > MAX_KEYWORDS ? ` · capped from ${rawCount}` : ''}
           </span>
-          <select value={geo} onChange={e => setGeo(e.target.value)}
-            title="Country for Google volume/CPC + the currency prices are shown in"
-            style={{ height: 40, padding: '0 12px', borderRadius: 10, border: `1px solid ${C.ash}`, background: C.paper, color: C.ink, fontSize: 13.5, fontFamily: 'inherit', cursor: 'pointer' }}>
-            {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name} · {GEO_CURRENCY[c.code]}</option>)}
-          </select>
+          <span style={{ fontSize: 12, fontFamily: MONO, color: C.stone }}>
+            × {CYCLE_ORDER.length} countries = {(pending.length * CYCLE_ORDER.length).toLocaleString()} lookups
+          </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
-            {order.length > 0 && (
-              <button onClick={() => { setInput(''); setOrder([]); setCells({}) }}
+            {started && !running && (
+              <button onClick={clear}
                 style={{ height: 44, padding: '0 18px', borderRadius: 12, border: `1px solid ${C.ash}`, background: C.paper, color: C.graphite, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>
                 Clear
               </button>
             )}
-            <button onClick={run} disabled={running || !pending.length}
-              style={{ ...primaryBtn, opacity: (running || !pending.length) ? 0.6 : 1, cursor: (running || !pending.length) ? 'not-allowed' : 'pointer' }}>
-              {running ? `Searching… (${done.length}/${order.length})` : `Search ${pending.length || ''} keyword${pending.length === 1 ? '' : 's'} →`}
-            </button>
+            {running ? (
+              <button onClick={stop}
+                style={{ height: 44, padding: '0 22px', borderRadius: 12, border: `1px solid ${D.hard}`, background: C.paper, color: D.hard, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
+                Stop
+              </button>
+            ) : (
+              <button onClick={run} disabled={!pending.length}
+                style={{ ...primaryBtn, opacity: !pending.length ? 0.6 : 1, cursor: !pending.length ? 'not-allowed' : 'pointer' }}>
+                Start {pending.length ? `${pending.length} keyword${pending.length === 1 ? '' : 's'} ` : ''}→
+              </button>
+            )}
           </div>
         </div>
       </Card>
 
-      {/* Summary */}
-      {order.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '4px 2px' }}>
-          <span style={{ fontSize: 13.5, color: C.ink, fontWeight: 500 }}>
-            {done.length} of {order.length} done
-          </span>
-          <span style={{ fontSize: 12.5, fontFamily: MONO, color: D.good }}>⚡ {fromCache} from database</span>
-          <span style={{ fontSize: 12.5, fontFamily: MONO, color: C.orange }}>● {live} live</span>
-          {done.length > 0 && (
-            <button onClick={exportCsv}
-              style={{ marginLeft: 'auto', height: 36, padding: '0 15px', borderRadius: 100, border: `1px solid ${C.ash}`, background: C.paper, color: C.ink, fontSize: 12.5, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>
-              Export CSV
-            </button>
+      {/* Progress */}
+      {started && (
+        <Card style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Overall */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: C.ink }}>
+                {running ? 'Collecting…' : (overallDone >= totalOps ? 'Done' : 'Paused')}
+              </span>
+              <span style={{ fontSize: 13, fontFamily: MONO, color: C.graphite }}>
+                {overallDone.toLocaleString()} / {totalOps.toLocaleString()} lookups · {Math.round(overallPct)}%
+              </span>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 14 }}>
+                <span style={{ fontSize: 12, fontFamily: MONO, color: D.good }}>⚡ {totCache.toLocaleString()} saved</span>
+                <span style={{ fontSize: 12, fontFamily: MONO, color: C.orange }}>● {totLive.toLocaleString()} live</span>
+                {totFail > 0 && <span style={{ fontSize: 12, fontFamily: MONO, color: D.hard }}>✕ {totFail.toLocaleString()} failed</span>}
+              </div>
+            </div>
+            <Bar pct={overallPct} color={C.orange} />
+          </div>
+
+          {/* Current country */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>
+                Country {geoIndex + 1} / {CYCLE_ORDER.length}: {CODE_NAME[curGeo]}
+              </span>
+              <span style={{ fontSize: 12, fontFamily: MONO, color: C.graphite }}>
+                {curProg.done} / {keywords.length}
+              </span>
+            </div>
+            <Bar pct={keywords.length ? (curProg.done / keywords.length) * 100 : 0} color={D.good} />
+          </div>
+
+          {/* Per-country chips */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {CYCLE_ORDER.map((g, i) => {
+              const p = perGeo[g] ?? emptyProg()
+              const complete = p.done >= keywords.length && keywords.length > 0
+              const active = running && i === geoIndex
+              return (
+                <span key={g} title={`${CODE_NAME[g]} — ${p.done}/${keywords.length}`}
+                  style={{
+                    fontSize: 11.5, fontFamily: MONO, fontWeight: 600, padding: '5px 10px', borderRadius: 100,
+                    border: `1px solid ${active ? C.orange : complete ? D.good : C.ash}`,
+                    background: active ? C.orangeFaint : complete ? D.goodBg : C.paper,
+                    color: active ? C.orange : complete ? D.good : C.graphite,
+                  }}>
+                  {complete ? '✓ ' : active ? '● ' : ''}{CODE_NAME[g]} {p.done}/{keywords.length || 0}
+                </span>
+              )
+            })}
+          </div>
+
+          {overallDone > 0 && (
+            <div>
+              <button onClick={exportCsv}
+                style={{ height: 36, padding: '0 15px', borderRadius: 100, border: `1px solid ${C.ash}`, background: C.paper, color: C.ink, fontSize: 12.5, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>
+                Export CSV ({overallDone.toLocaleString()} rows)
+              </button>
+            </div>
           )}
-        </div>
+        </Card>
       )}
 
-      {/* Results */}
-      {order.length === 0 ? (
-        <EmptyState icon="🗂" title="No search yet" sub="Paste a batch of keywords above and hit Search — each keyword gets its own full data card." />
+      {/* Latest results feed — the newest few, so you can see real data flowing in */}
+      {started ? (
+        recent.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <SectionTitle right={<span style={{ fontSize: 11, fontFamily: MONO, color: C.stone }}>latest {recent.length}</span>}>
+              Live results
+            </SectionTitle>
+            {recent.map(r => (
+              <div key={r.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 11, fontFamily: MONO, fontWeight: 600, color: C.stone, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {CODE_NAME[r.geo]} · {GEO_CURRENCY[r.geo]}
+                </span>
+                <KeywordCard keyword={r.keyword} cell={{ status: 'done', result: r.result }} geo={r.geo} />
+              </div>
+            ))}
+          </div>
+        )
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {order.map(k => <KeywordCard key={k} keyword={k} cell={cells[k] ?? { status: 'loading' }} geo={geo} />)}
-        </div>
+        <EmptyState icon="🗂" title="No search yet" sub={`Paste up to ${MAX_KEYWORDS} keywords above and hit Start — the batch runs across all ${CYCLE_ORDER.length} countries automatically and saves every package.`} />
       )}
     </div>
   )

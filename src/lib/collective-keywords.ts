@@ -17,7 +17,7 @@ import { CollectiveKeywordData } from '@/lib/models'
 import { memCache, cacheKey, CACHE_TTL } from '@/lib/cache'
 import { getKeywordCore } from '@/lib/keywords'
 import { enrichRelatedCompetition, getListingReviewCount, attachImages, getNearMatches } from '@/lib/etsy'
-import { googleKeywordMetrics, isGoogleAdsConfigured } from '@/lib/google-ads'
+import { googleKeywordMetrics, googleAccountCurrency, isGoogleAdsConfigured } from '@/lib/google-ads'
 import { buildKeywordTrends } from '@/lib/trends'
 import type { CollectiveKeywordResult, KeywordSearchResponse, KeywordData, NearMatch } from '@/types'
 
@@ -110,6 +110,54 @@ export async function buildFullPackage(keyword: string, geo = 'US', force = fals
 }
 
 /**
+ * Backfill Google volume/CPC/competition onto a SAVED package that never carried
+ * it. `looksComplete` only checks Etsy fields, so a row saved before Google
+ * enrichment existed (or while Google was briefly failing) is served as complete
+ * yet shows blank Google stats forever. `googleCurrency === undefined` uniquely
+ * marks a never-enriched row: getKeywordCore always SETS googleCurrency (to a
+ * code or null) whenever the Google block ran. So we only spend a Google call on
+ * genuinely un-enriched rows, one time — a cheap, geo-specific top-up that is not
+ * behind the Etsy rate gate. Mutates `data.stats` in place.
+ *
+ * Returns true when the Google lookup completed (so the caller re-persists and
+ * future reads stop retrying); false when Google is off, already enriched, or the
+ * call threw (left un-enriched so a later read heals it once Google recovers).
+ */
+async function backfillGoogle(data: KeywordSearchResponse, kw: string, geo: string): Promise<boolean> {
+  if (!isGoogleAdsConfigured() || data.stats?.googleCurrency !== undefined) return false
+  try {
+    const [metrics, currency] = await Promise.all([googleKeywordMetrics([kw], geo), googleAccountCurrency()])
+    const g = metrics.get(kw)
+    if (g) {
+      data.stats.googleSearches         = g.searches ?? null
+      data.stats.googleCompetition      = g.competition as KeywordSearchResponse['stats']['googleCompetition']
+      data.stats.googleCompetitionIndex = g.competitionIndex
+      data.stats.googleCpcLow           = g.cpcLow
+      data.stats.googleCpcHigh          = g.cpcHigh
+    }
+    data.stats.googleCurrency = currency   // marks the row as enriched (may be null)
+    return true
+  } catch (e) {
+    console.error(`[Collective] google backfill "${kw}":`, e)
+    return false
+  }
+}
+
+/** Backfill Google onto a cached row and, if it filled, re-persist it so the fix sticks. */
+async function healCachedGoogle(data: KeywordSearchResponse, kw: string, geo: string, mk: string, savedAt: string): Promise<void> {
+  const filled = await backfillGoogle(data, kw, geo)
+  if (!filled) return
+  memCache.set(mk, { data, savedAt }, CACHE_TTL.KEYWORD)
+  connectDB()
+    .then(() => CollectiveKeywordData.findOneAndUpdate(
+      { keyword: kw, geo },
+      { $set: { data, lastRefreshedAt: new Date() } },
+      { upsert: true },
+    ))
+    .catch(e => console.error(`[Collective] google backfill save "${kw}":`, e))
+}
+
+/**
  * Get one keyword's full package for the collective tool.
  *
  * DB-first: if a fresh `CollectiveKeywordData` row exists, return it as `cache`
@@ -124,6 +172,7 @@ export async function getCollectiveKeyword(keyword: string, geo = 'US'): Promise
   // ── Memory-first — instant, and skips the slow Mongo round-trip on repeats ──
   const mem = memCache.get<MemEntry>(mk)
   if (mem && looksComplete(mem.data)) {
+    await healCachedGoogle(mem.data, kw, geo, mk, mem.savedAt)   // top up Google stats if this row predates enrichment
     return { keyword: kw, geo, data: mem.data, source: 'cache', savedAt: mem.savedAt }
   }
 
@@ -136,6 +185,7 @@ export async function getCollectiveKeyword(keyword: string, geo = 'US'): Promise
       const data = hit.data as KeywordSearchResponse
       const savedAt = new Date(hit.searchedAt ?? hit.createdAt ?? Date.now()).toISOString()
       memCache.set(mk, { data, savedAt }, CACHE_TTL.KEYWORD)   // warm memory so the next hit is instant
+      await healCachedGoogle(data, kw, geo, mk, savedAt)         // top up Google stats if this row predates enrichment
       return { keyword: kw, geo, data, source: 'cache', savedAt }
     }
   } catch (e) {
