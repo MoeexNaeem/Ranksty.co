@@ -1,80 +1,64 @@
-# Deploying rankkw.online on the Contabo server
+# Deploying rankkw.online
 
-rankkw.online runs on the same Contabo server as rankkw.com, as its own PM2 app
-(`rankkw-online`, port 3300, local only). Its data lives in MongoDB Atlas, cluster
-`database.vjpfzm9`, database **`rankkw_online`**. It shares nothing with rankkw.com
-except the machine.
+rankkw.online runs on its own server, **13.140.168.178** (aaPanel), as the PM2 app
+`rankkw-online` on 127.0.0.1:3300, behind nginx on port 443 and Cloudflare. Its
+data lives in MongoDB Atlas, cluster `database.vjpfzm9`, database
+**`rankkw_online`**. It shares nothing with rankkw.com.
 
-Run everything below in the server terminal (aaPanel > Terminal, or SSH).
+## 1. Before you start
 
-## 1. Database (MongoDB Atlas)
+- **Cloudflare DNS** (zone rankkw.online): `A` record `@` -> `13.140.168.178`,
+  proxied (orange cloud); `CNAME` `www` -> `rankkw.online`, proxied. SSL/TLS
+  mode **Full**.
+- **Atlas > Network Access**: add `13.140.168.178`. Without it the app cannot
+  reach the database.
+- **Database name**: `rankkw_online`, never `guestpost` (that one belongs to the
+  guest post website; both apps keep accounts in a `users` collection). Atlas
+  creates it on the first write.
+- **Settings file**: `.env.server` on your PC (gitignored, never committed). It
+  holds the production values, with its own JWT, token-encryption and cron
+  secrets.
 
-- Database name: **`rankkw_online`**. Never `guestpost`: that one belongs to the
-  guest post website, and both apps keep their accounts in a `users` collection,
-  so sharing it would mix the two sites' users. Atlas creates `rankkw_online` by
-  itself on the first write; there is nothing to create by hand.
-- Atlas > Network Access: add the Contabo server's public IP (the one rankkw.com's
-  server uses). Without it the app cannot reach the database.
-- The connection string is the cluster's usual one with `/rankkw_online?` as the
-  database part:
-  `mongodb+srv://<user>:<password>@database.vjpfzm9.mongodb.net/rankkw_online?retryWrites=true&w=majority&appName=Database`
-
-## 2. Code and environment
+## 2. Setup (one command, as root in the server terminal)
 
 ```bash
-cd /www/wwwroot
-git clone https://github.com/MoeexNaeem/Ranksty.co.git rankkw-online
-cd rankkw-online
-cp .env.local.example .env.local
-nano .env.local
+git clone https://github.com/MoeexNaeem/Ranksty.co.git /www/wwwroot/rankkw-online
+bash /www/wwwroot/rankkw-online/scripts/server/setup.sh
 ```
 
-In `.env.local` set at least:
+When it asks, paste all of `.env.server`, press Enter, then Ctrl+D. The script
+installs Node.js and PM2 if needed, builds and starts the app, writes the nginx
+site (port 443, self-signed origin certificate for Cloudflare "Full"), adds the
+daily 03:00 snapshot job to root's crontab and checks the site and database.
+It leaves other sites on the server alone. Safe to re-run.
+
+Later updates: `cd /www/wwwroot/rankkw-online && git pull && bash scripts/deploy.sh`
+(build on the side, swap, health check, automatic rollback).
+
+## 3. Settings reference (`.env.local` on the server)
 
 | Variable | Value |
 |---|---|
-| `MONGODB_URI` | the Atlas string from step 1 (database **`rankkw_online`**) |
+| `MONGODB_URI` | Atlas string with `/rankkw_online?` as the database part |
 | `NODE_ENV` | `production` |
 | `NEXT_PUBLIC_APP_URL` | `https://rankkw.online` |
-| `JWT_SECRET`, `JWT_REFRESH_SECRET` | two **different** long random values (if they are equal, a 30-day refresh token also passes as a login token) |
-| `ETSY_API_KEY`, `ETSY_SHARED_SECRET` | the keystring and shared secret of the **rankkw.online** Etsy app |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | the support@rankkw.online mailbox (a personal Gmail works, but its emails then come from that Gmail address) |
+| `JWT_SECRET`, `JWT_REFRESH_SECRET` | two **different** long random values |
+| `TOKEN_ENC_KEY` | its own random key; never change it once shops are connected (it encrypts saved Etsy shop tokens) |
+| `ETSY_API_KEY`, `ETSY_SHARED_SECRET` | keystring and shared secret of the **rankkw.online** Etsy app |
+| `ETSY_REDIRECT_URI` | `https://rankkw.online/api/etsy/oauth/callback` |
+| `SMTP_*`, `EMAIL_FROM` | the mailbox that sends codes and contact mail |
+| `SUPPORT_EMAIL` | where contact-form messages go |
 | `ADMIN_EMAILS` | your admin email(s) only |
-| `SUPPORT_EMAIL` | `support@rankkw.online` (where contact-form messages go) |
-| `CRON_SECRET` | a long random value |
-| `TOKEN_ENC_KEY` | its own random key, set before any shop connects (encrypts saved Etsy shop tokens; without it the key is derived from `JWT_SECRET`, so rotating that later would lock out every connected shop) |
-| `GEMINI_API_KEY` (or `Gemini_API_KEY`), Google Ads keys | as before |
+| `CRON_SECRET` | long random value (used by the daily job) |
+| `GEMINI_API_KEY`, Google Ads keys | as before |
 
-Then build and start:
+After editing it on the server: `pm2 restart rankkw-online` (or
+`bash scripts/deploy.sh` for `NEXT_PUBLIC_*` changes, which are built in).
 
-```bash
-npm install --no-audit --no-fund
-npm run build
-pm2 start ecosystem.config.cjs
-pm2 save
-curl -s http://127.0.0.1:3300/api/health     # expects "ok":true
-```
+## 4. Email to support@rankkw.online
 
-Later deploys: `bash scripts/deploy.sh` (safe build, swap, health check, auto rollback).
-
-## 3. Website (nginx) and SSL
-
-1. Cloudflare: add rankkw.online, set an `A` record for `@` and `www` to the
-   server's IP, proxy ON (orange cloud), SSL/TLS mode **Full**.
-2. aaPanel > Website > Add site: `rankkw.online` and `www.rankkw.online`.
-3. Site > Reverse proxy: target `http://127.0.0.1:3300`, send host `$host`.
-4. Site > SSL: Cloudflare Origin Certificate (or Let's Encrypt), force HTTPS.
-5. Open https://rankkw.online and https://rankkw.online/api/health.
-
-## 4. Daily snapshot job (replaces the old Vercel cron)
-
-```bash
-crontab -e
-```
-add (03:00 server time every day):
-```
-0 3 * * * curl -s -m 600 -H "Authorization: Bearer <CRON_SECRET>" http://127.0.0.1:3300/api/cron/snapshot >/dev/null 2>&1
-```
+Cloudflare > rankkw.online > Email > Email Routing: create `support@rankkw.online`
+forwarding to your inbox. Then set `SUPPORT_EMAIL=support@rankkw.online`.
 
 ## 5. Etsy app (for Commercial Access)
 
