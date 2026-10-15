@@ -1,33 +1,23 @@
 # Deploying rankkw.online on the Contabo server
 
 rankkw.online runs on the same Contabo server as rankkw.com, as its own PM2 app
-(`rankkw-online`, port 3300, local only) with its own MongoDB database
-(`rankkw_online`). It shares nothing with rankkw.com except the machine.
+(`rankkw-online`, port 3300, local only). Its data lives in MongoDB Atlas, cluster
+`database.vjpfzm9`, database **`rankkw_online`**. It shares nothing with rankkw.com
+except the machine.
 
 Run everything below in the server terminal (aaPanel > Terminal, or SSH).
 
-## 1. Database: create `rankkw_online` and its user
+## 1. Database (MongoDB Atlas)
 
-MongoDB on this server has authentication on and no admin user, so a new user can
-only be created with authentication briefly switched off. This restarts MongoDB
-twice (a few seconds each); rankkw.com reconnects by itself. Do it at a quiet hour.
-
-1. aaPanel > App Store > MongoDB > Settings > Config file: set
-   `authorization: disabled` under `security:`, save, then Restart MongoDB.
-2. Create the user (pick a long random password and keep it for step 3):
-
-   ```bash
-   /www/server/mongodb/bin/mongosh --quiet --eval '
-     db.getSiblingDB("rankkw_online").createUser({
-       user: "rankkw_online",
-       pwd: passwordPrompt(),
-       roles: [{ role: "readWrite", db: "rankkw_online" }, { role: "dbAdmin", db: "rankkw_online" }]
-     })'
-   ```
-   (If `mongosh` is not there, use `/www/server/mongodb/bin/mongo` with the same script.)
-3. Set `authorization: enabled` again, save, Restart MongoDB.
-4. Check rankkw.com is fine: `curl -s http://127.0.0.1:3000/api/health`
-   (expects `"ok":true`).
+- Database name: **`rankkw_online`**. Never `guestpost`: that one belongs to the
+  guest post website, and both apps keep their accounts in a `users` collection,
+  so sharing it would mix the two sites' users. Atlas creates `rankkw_online` by
+  itself on the first write; there is nothing to create by hand.
+- Atlas > Network Access: add the Contabo server's public IP (the one rankkw.com's
+  server uses). Without it the app cannot reach the database.
+- The connection string is the cluster's usual one with `/rankkw_online?` as the
+  database part:
+  `mongodb+srv://<user>:<password>@database.vjpfzm9.mongodb.net/rankkw_online?retryWrites=true&w=majority&appName=Database`
 
 ## 2. Code and environment
 
@@ -43,15 +33,17 @@ In `.env.local` set at least:
 
 | Variable | Value |
 |---|---|
-| `MONGODB_URI` | `mongodb://rankkw_online:<password>@127.0.0.1:27017/rankkw_online?authSource=rankkw_online` |
+| `MONGODB_URI` | the Atlas string from step 1 (database **`rankkw_online`**) |
+| `NODE_ENV` | `production` |
 | `NEXT_PUBLIC_APP_URL` | `https://rankkw.online` |
-| `JWT_SECRET`, `JWT_REFRESH_SECRET` | new long random values (not rankkw.com's) |
+| `JWT_SECRET`, `JWT_REFRESH_SECRET` | two **different** long random values (if they are equal, a 30-day refresh token also passes as a login token) |
 | `ETSY_API_KEY`, `ETSY_SHARED_SECRET` | the keystring and shared secret of the **rankkw.online** Etsy app |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | the support@rankkw.online mailbox |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | the support@rankkw.online mailbox (a personal Gmail works, but its emails then come from that Gmail address) |
+| `ADMIN_EMAILS` | your admin email(s) only |
 | `SUPPORT_EMAIL` | `support@rankkw.online` (where contact-form messages go) |
 | `CRON_SECRET` | a long random value |
-| `TOKEN_ENC_KEY` | a new random key (encrypts saved Etsy shop tokens) |
-| Gemini / Google Ads keys | as before |
+| `TOKEN_ENC_KEY` | its own random key, set before any shop connects (encrypts saved Etsy shop tokens; without it the key is derived from `JWT_SECRET`, so rotating that later would lock out every connected shop) |
+| `GEMINI_API_KEY` (or `Gemini_API_KEY`), Google Ads keys | as before |
 
 Then build and start:
 

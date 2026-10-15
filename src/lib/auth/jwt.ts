@@ -27,6 +27,9 @@ export async function signRefreshToken(userId: string): Promise<string> {
 export async function verifyAccessToken(token: string): Promise<AuthUser | null> {
   try {
     const { payload } = await jwtVerify(token, SECRET)
+    // A login token always carries the user's id and email. A refresh token only has
+    // `sub`, so it can never pass as a login token, even if both secrets are equal.
+    if (typeof payload.id !== 'string' || typeof payload.email !== 'string') return null
     return payload as unknown as AuthUser
   } catch {
     return null
