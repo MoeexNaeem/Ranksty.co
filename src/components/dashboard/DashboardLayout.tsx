@@ -42,7 +42,7 @@ type TabId = 'overview' | 'myshop' | 'hotproducts' | 'keywords' | 'gap' | 'listi
 
 const ICON = (d: React.ReactNode) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode; description: string; group: string; accent: AccentName }[] = [
+const TABS: { id: TabId; label: string; icon: React.ReactNode; description: string; group: string; accent: AccentName; hidden?: boolean }[] = [
   { id: 'overview',    label: 'Overview',      group: 'Home',        accent: 'indigo',  description: 'Your Etsy SEO command center',
     icon: ICON(<><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></>) },
   { id: 'myshop',      label: 'My Shop',       group: 'Home',        accent: 'orange',  description: 'Your connected shop\'s sales & insights',
@@ -71,7 +71,8 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode; description: stri
     icon: ICON(<><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></>) },
   { id: 'bulk',        label: 'Bulk Keywords', group: 'Research',    accent: 'purple',  description: 'Compare keywords in bulk',
     icon: ICON(<><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></>) },
-  { id: 'collective',  label: 'Collective Keyword Search', group: 'Research', accent: 'indigo', description: 'Search 25 keywords at once — each with its full data, saved & reused',
+  // Hidden for now (owner, 2026-10-15): kept in code, not shown in the menu.
+  { id: 'collective',  label: 'Collective Keyword Search', group: 'Research', accent: 'indigo', hidden: true, description: 'Search 25 keywords at once — each with its full data, saved & reused',
     icon: ICON(<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>) },
   { id: 'rank',        label: 'Rank Checker',  group: 'Research',    accent: 'red',     description: 'Find where your shop ranks',
     icon: ICON(<><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>) },
@@ -160,7 +161,10 @@ export function DashboardLayout() {
   const [navOpen, setNavOpen] = useState(false)
   const { data: user } = useAuth()
   const logout = useLogout()
-  const handleTab = useCallback((id: TabId) => { setActiveTab(id); setNavOpen(false) }, [])
+  const handleTab = useCallback((id: TabId) => {
+    if (TABS.find(t => t.id === id)?.hidden) return
+    setActiveTab(id); setNavOpen(false)
+  }, [])
 
   // After the Etsy OAuth redirect (…/dashboard?etsy=connected), land on My Shop
   // and clean the URL so a refresh doesn't re-trigger the banner.
@@ -197,7 +201,7 @@ export function DashboardLayout() {
           {GROUPS.map(group => (
             <div key={group} style={{ marginBottom: 12 }}>
               <p className="rlabel" style={{ fontSize: 10, fontFamily: "'DM Sans',sans-serif", fontWeight: 600, color: C.stone, textTransform: 'uppercase', letterSpacing: '0.11em', padding: '4px 14px', marginBottom: 4 }}>{group}</p>
-              {TABS.filter(t => t.group === group).map(tab => {
+              {TABS.filter(t => t.group === group && !t.hidden).map(tab => {
                 const active = activeTab === tab.id
                 const hue = ACCENT[tab.accent]
                 return (
