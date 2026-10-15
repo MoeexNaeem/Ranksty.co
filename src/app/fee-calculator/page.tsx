@@ -3,7 +3,7 @@ import { Footer } from '@/components/landing/Sections'
 import { FeeCalculatorSection } from '@/components/landing/FeeCalculatorSection'
 
 export const metadata = {
-  title: 'Etsy Fee Calculator — Rankkw',
+  title: 'Fee Calculator for Etsy Sellers | Rankkw',
   description:
     "Estimate Etsy's listing, transaction and payment-processing fees, plus your net profit, margin and break-even price — free.",
 }

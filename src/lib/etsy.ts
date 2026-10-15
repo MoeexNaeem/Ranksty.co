@@ -10,7 +10,7 @@
  *   GET /v3/application/shops/{shop_id}  → shop info
  *   GET /v3/application/shops/{shop_id}/listings/active → shop listings
  */
-import { recordShopSnapshots, recordListingSnapshots, recordShopSnapshot } from '@/lib/snapshots'
+import { recordShopSnapshots, recordShopSnapshot } from '@/lib/snapshots'
 import { recordEtsyCall } from '@/lib/usage'
 import type {
   EtsyListing, EtsyShop, KeywordData,
@@ -39,8 +39,9 @@ if (!ETSY_API_KEY && process.env.NODE_ENV === 'production') {
 // Etsy allows roughly 10 requests/second. A single keyword search fans out into
 // dozens of calls (the search, image batches, per-keyword competition probes,
 // near-match variants), which sails past that ceiling and comes back 429. Every
-// public call funnels through this gate so the whole app shares one budget.
-const RATE_LIMIT_PER_SEC = 8   // headroom under Etsy's ~10/sec
+// public call funnels through this gate. The 8/sec budget (headroom under Etsy's
+// ~10/sec) is split across the PM2 workers, which each run their own gate.
+const RATE_LIMIT_PER_SEC = 8 / Math.max(1, Number(process.env.PM2_INSTANCES) || 1)
 const MIN_GAP_MS = 1000 / RATE_LIMIT_PER_SEC
 
 let lastCallAt = 0
@@ -1395,7 +1396,6 @@ export async function getTopSellers(query: string, scan = 100): Promise<TopSelle
     activeListings: facts[i]?.activeListings ?? null,
     isVacation: facts[i]?.isVacation ?? false,
   })))
-  recordListingSnapshots(listings)
 
   const sellers: TopSeller[] = ranked.map((r, i) => {
     const f = facts[i] ?? {}

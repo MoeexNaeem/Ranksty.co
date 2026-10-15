@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { resolveShopId, getEtsyShop } from '@/lib/etsy'
 import { getShopVelocity } from '@/lib/snapshots'
 import type { ApiResponse, ShopVelocity } from '@/types'
+import { SNAPSHOT_RETENTION_DAYS } from '@/utils'
 
 // Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
 export const dynamic = 'force-dynamic'
@@ -19,7 +20,7 @@ export const runtime = 'nodejs'
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<ShopVelocity>>> {
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('shop')?.trim()
-  const days = Math.min(Math.max(Number(searchParams.get('days') ?? 90), 7), 400)
+  const days = Math.min(Math.max(Number(searchParams.get('days') ?? 90), 7), SNAPSHOT_RETENTION_DAYS)
 
   if (!q) return NextResponse.json({ success: false, error: 'shop is required' }, { status: 400 })
 

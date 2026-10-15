@@ -19,7 +19,7 @@ const sections = [
       },
       {
         label: 'Integration & Application Data',
-        text: 'If you connect an Etsy shop to our platform via standard OAuth authorization, we access only the specific read-only permissions you explicitly grant (such as shop listing details or search visibility metrics). We do not collect or store your private login credentials.',
+        text: 'If you connect an Etsy shop through Etsy’s own sign-in (OAuth), we get read-only access to your shop details, listings and orders, and nothing else. We never see your Etsy password. The access key Etsy gives us is stored encrypted and is deleted when you disconnect the shop or delete your account.',
       },
     ],
   },
@@ -55,12 +55,22 @@ const sections = [
   },
   {
     number: '04',
+    title: 'Etsy Data and How Long We Keep It',
+    content: 'Rankkw reads marketplace data only through the official Etsy API. We keep it only as long as needed to run the tools:',
+    bullets: [
+      { label: 'Listings and shops', text: 'Search results, listing and shop details are kept in a short-term cache for less than 6 hours, then fetched fresh from Etsy.' },
+      { label: 'Sales history', text: 'To show how many sales a shop made per day, we record a few shop-level numbers once a day (total sales, favorites, reviews, active listings). These are deleted automatically after 90 days. We do not keep copies of listing titles, tags, descriptions, photos or prices.' },
+      { label: 'Your connected shop', text: 'Your shop’s orders and listings are read live from Etsy when you open those tools and are not saved.' },
+    ],
+  },
+  {
+    number: '05',
     title: 'Data Security',
     content: 'We implement robust, industry-standard technical and organizational security measures to protect your information from unauthorized access, alteration, or disclosure. However, please remember that no method of transmission over the internet or electronic storage is 100% secure.',
     bullets: [],
   },
   {
-    number: '05',
+    number: '06',
     title: 'Your Rights and Choices',
     content: 'Depending on your location, you may have specific rights regarding your personal data, including:',
     bullets: [
@@ -68,23 +78,23 @@ const sections = [
       { label: '', text: 'The right to object to or restrict certain processing activities.' },
       { label: '', text: 'The right to withdraw consent at any time for features relying on OAuth or integrations.' },
     ],
-    footer: 'To exercise any of these rights, please contact us at our support email address.',
+    footer: 'You can delete your account and all data linked to it at any time from your Profile page, and disconnect your Etsy shop from the dashboard. For anything else, contact us at our support email address.',
   },
   {
-    number: '06',
+    number: '07',
     title: 'Third-Party Trademarks and Disclaimers',
     content: 'Rankkw is an independent analytics tool.',
     disclaimer: true,
     bullets: [],
   },
   {
-    number: '07',
+    number: '08',
     title: 'Changes to This Policy',
     content: `We reserve the right to update this Privacy Policy at any time. We will notify users of any significant changes by updating the "Effective Date" at the top of this page or via direct notification within the app dashboard.`,
     bullets: [],
   },
   {
-    number: '08',
+    number: '09',
     title: 'Contact Us',
     content: 'If you have any questions or concerns about this Privacy Policy, please reach out to us at:',
     contact: true,
@@ -146,7 +156,7 @@ export default function PrivacyPage() {
                 letterSpacing: '0.02em',
               }}
             >
-              Effective Date: June 3, 2026
+              Effective Date: October 15, 2026
             </p>
           </div>
         </div>

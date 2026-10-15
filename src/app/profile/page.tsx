@@ -67,6 +67,23 @@ export default function ProfilePage() {
     setTimeout(() => setPwdMsg(null), 3500)
   }, [cur, nw])
 
+  const [delPwd, setDelPwd] = useState('')
+  const [delMsg, setDelMsg] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const deleteAccount = useCallback(async () => {
+    if (!window.confirm('Delete your Rankkw account and all its data? This can\'t be undone.')) return
+    setDeleting(true); setDelMsg(null)
+    try {
+      const r = await fetch('/api/auth/profile', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: delPwd }) })
+      const d = await r.json()
+      if (d.success) { window.location.href = '/'; return }
+      setDelMsg(d.errors?.password || d.error || 'Failed')
+    } catch {
+      setDelMsg('Failed')
+    }
+    setDeleting(false)
+  }, [delPwd])
+
   return (
     <>
       <Navbar />
@@ -140,6 +157,18 @@ export default function ProfilePage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
                       <button onClick={changePwd} style={btn} disabled={!cur || !nw}>Update password</button>
                       {pwdMsg && <span style={{ fontSize: 12.5, color: pwdMsg.ok ? C.success : C.danger }}>{pwdMsg.text}</span>}
+                    </div>
+                  </Card>
+
+                  {/* Delete account */}
+                  <Card pad="20px">
+                    <h3 style={{ fontSize: 15, fontWeight: 500, color: C.danger, marginBottom: 6 }}>Delete account</h3>
+                    <p style={{ fontSize: 12.5, color: '#6E6E64', marginBottom: 14 }}>Removes your account, search history, tracked shops and connected Etsy shop. This can&apos;t be undone.</p>
+                    <label style={label}>Password</label>
+                    <input type="password" value={delPwd} onChange={e => setDelPwd(e.target.value)} style={input} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
+                      <button onClick={deleteAccount} style={{ ...btn, background: C.danger }} disabled={!delPwd || deleting}>{deleting ? 'Deleting…' : 'Delete my account'}</button>
+                      {delMsg && <span style={{ fontSize: 12.5, color: C.danger }}>{delMsg}</span>}
                     </div>
                   </Card>
                 </div>

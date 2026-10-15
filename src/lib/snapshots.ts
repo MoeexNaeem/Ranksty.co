@@ -4,8 +4,8 @@
  * Why this exists: Etsy's Open API returns STATE, never HISTORY. A shop record
  * carries `transaction_sold_count` (lifetime sales) and nothing about last week.
  * There is no historical endpoint and no way to backfill. So every time-based
- * feature — sales velocity, "sold yesterday", Competitor Sales, listing Changes,
- * honest monthly trends — depends on us recording state ourselves, starting now.
+ * feature (sales velocity, "sold yesterday", Competitor Sales, honest monthly
+ * trends) depends on us recording state ourselves, starting now.
  *
  * Two capture paths, deliberately:
  *   1. Opportunistic (`recordShopSnapshot`) — fires whenever any surface reads a
@@ -14,12 +14,14 @@
  *   2. Scheduled (`/api/cron/snapshot`) — guarantees a daily row for tracked
  *      shops even if nobody browses them.
  *
- * This is NOT the Etsy caching rule in cache.ts. We never re-serve stale Etsy
- * content as current; a snapshot is a dated measurement presented as history.
+ * Only shop-level numbers are kept (sales count, favorers, reviews, listing
+ * count), never listing content, and only for SNAPSHOT_RETENTION_DAYS: as long as
+ * the longest history view needs (Etsy API Terms: store Etsy content no longer than
+ * reasonably necessary). We never re-serve stale Etsy content as current.
  */
 import { connectDB } from '@/lib/db'
-import { ShopSnapshot, ListingSnapshot } from '@/lib/models'
-import type { EtsyListing, SalesPoint, ShopVelocity } from '@/types'
+import { ShopSnapshot } from '@/lib/models'
+import type { SalesPoint, ShopVelocity } from '@/types'
 
 /** UTC day key — the dedupe unit. Local time would double-count across zones. */
 export function dayKey(d: Date = new Date()): string {
@@ -112,42 +114,6 @@ export function recordShopSnapshots(shops: ShopSnapshotInput[]): void {
   })()
 }
 
-/** Record listing state for change-tracking. Fire-and-forget. */
-export function recordListingSnapshots(listings: EtsyListing[]): void {
-  const rows = listings.filter(l => l.listing_id && l.shop_id)
-  if (!rows.length) return
-  void (async () => {
-    try {
-      await connectDB()
-      const day = dayKey()
-      await ListingSnapshot.bulkWrite(
-        rows.map(l => ({
-          updateOne: {
-            filter: { listingId: l.listing_id, day },
-            update: {
-              $set: {
-                shopId:   l.shop_id,
-                title:    l.title,
-                tags:     l.tags ?? [],
-                price:    l.price.amount / (l.price.divisor || 100),
-                currency: l.price.currency_code,
-                views:    l.views ?? 0,
-                favorers: l.num_favorers ?? 0,
-                capturedAt: new Date(),
-              },
-              $setOnInsert: { listingId: l.listing_id, day },
-            },
-            upsert: true,
-          },
-        })),
-        { ordered: false },
-      )
-    } catch (e) {
-      console.error('[Snapshots] listing capture failed:', e)
-    }
-  })()
-}
-
 // ─── Velocity ─────────────────────────────────────────────────────────────────
 
 /**
@@ -213,39 +179,5 @@ export async function getShopVelocity(shopId: number, days = 90): Promise<ShopVe
   } catch (e) {
     console.error('[Snapshots] velocity read failed:', e)
     return null
-  }
-}
-
-// ─── Listing changes ──────────────────────────────────────────────────────────
-
-export interface ListingChange {
-  day: string
-  field: 'title' | 'tags' | 'price'
-  from: string
-  to: string
-}
-
-/** Diff consecutive listing snapshots into a human-readable edit log. */
-export async function getListingChanges(listingId: number, days = 90): Promise<ListingChange[]> {
-  try {
-    await connectDB()
-    const rows = await ListingSnapshot.find({ listingId, day: { $gte: daysAgoKey(days) } })
-      .sort({ day: 1 })
-      .select('day title tags price currency')
-      .lean()
-
-    const out: ListingChange[] = []
-    for (let i = 1; i < rows.length; i++) {
-      const a = rows[i - 1], b = rows[i]
-      if (a.title !== b.title) out.push({ day: b.day, field: 'title', from: a.title, to: b.title })
-      if (a.price !== b.price) out.push({ day: b.day, field: 'price', from: `${a.currency} ${a.price.toFixed(2)}`, to: `${b.currency} ${b.price.toFixed(2)}` })
-      const at = [...(a.tags ?? [])].sort().join(', ')
-      const bt = [...(b.tags ?? [])].sort().join(', ')
-      if (at !== bt) out.push({ day: b.day, field: 'tags', from: at, to: bt })
-    }
-    return out.reverse()
-  } catch (e) {
-    console.error('[Snapshots] change read failed:', e)
-    return []
   }
 }

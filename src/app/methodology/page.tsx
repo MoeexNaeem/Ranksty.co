@@ -155,13 +155,13 @@ export default function MethodologyPage() {
 
           <Section title="Freshness &amp; caching">
             <p style={{ fontSize: 15.5, color: C.graphite, lineHeight: 1.65, marginBottom: 18 }}>
-              To respect Etsy&apos;s API Terms, cached Etsy content is always refreshed well inside Etsy&apos;s limits —
-              listing-derived data within <strong>5 hours</strong> (Etsy&apos;s ceiling is 6 hours) and shop data within{' '}
-              <strong>15 minutes</strong> (ceiling 24 hours). Every figure you see as a <em>current</em> number is fetched
+              To respect Etsy&apos;s API Terms, cached Etsy content is always refreshed well inside Etsy&apos;s limits:
+              everything we show from Etsy is less than <strong>6 hours</strong> old (Etsy allows 6 hours for listings
+              and 24 hours for other content). Every figure you see as a <em>current</em> number is fetched
               live from Etsy, never served from an expired cache.
             </p>
             <p style={{ fontSize: 15.5, color: C.graphite, lineHeight: 1.65, marginBottom: 18 }}>
-              We also send no more than <strong>8 requests per second</strong> to Etsy — under their published ceiling —
+              We also send no more than <strong>8 requests per second</strong> to Etsy, under their published ceiling,
               and back off automatically if Etsy ever asks us to slow down. All calls go to the official
               <code style={{ fontFamily: MONO, fontSize: 13.5, background: C.bone, padding: '1px 6px', borderRadius: 4, margin: '0 4px' }}>openapi.etsy.com</code>
               endpoints. We do not scrape Etsy, and we use no third-party Etsy data resellers.
@@ -176,14 +176,14 @@ export default function MethodologyPage() {
             </p>
             <p style={{ fontSize: 15.5, color: C.graphite, lineHeight: 1.65, marginBottom: 18 }}>
               That is <em>not</em> caching, and we&apos;re careful about the difference. A cache re-serves Etsy&apos;s
-              content as though it were current — we never do that. A snapshot is a dated measurement, always presented as
+              content as though it were current; we never do that. A snapshot is a dated measurement, always presented as
               history and always labelled with the date it was taken. Until two days of history exist for a shop, we show
               &ldquo;tracking started&rdquo; rather than a misleading zero.
             </p>
             <p style={{ fontSize: 15.5, color: C.graphite, lineHeight: 1.65 }}>
-              Snapshots are capped at <strong>{SNAPSHOT_RETENTION_DAYS} days</strong> (~13 months — a full year of
-              seasonality plus a same-month-last-year comparison) and are deleted automatically by the database after
-              that. Sellers can stop tracking a shop at any time.
+              Snapshots hold only shop-level numbers (lifetime sales, favorites, reviews, active listings), never
+              listing titles, tags or prices. They are kept for <strong>{SNAPSHOT_RETENTION_DAYS} days</strong>, the longest
+              range our sales history shows, and are deleted automatically by the database after that. Sellers can stop tracking a shop at any time.
             </p>
           </Section>
 

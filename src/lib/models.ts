@@ -2,7 +2,7 @@ import mongoose, { Schema, model, models, type Document } from 'mongoose'
 import { SNAPSHOT_RETENTION_DAYS } from '@/utils'
 import type {
   IKeywordCache, IKeywordHistory, IOTP,
-  IShopSnapshot, IListingSnapshot, ITrackedShop,
+  IShopSnapshot, ITrackedShop,
   ICollectiveKeywordData, IApiUsage,
 } from '@/types'
 
@@ -77,6 +77,9 @@ const CollectiveKeywordDataSchema = new Schema<ICollectiveKeywordData>({
 
 // One package per keyword per country — makes the DB-first upsert idempotent.
 CollectiveKeywordDataSchema.index({ keyword: 1, geo: 1 }, { unique: true })
+// Deleted 6 h after its Etsy data was fetched: it is never served after 5 h, so
+// keeping it longer would only be storing Etsy content.
+CollectiveKeywordDataSchema.index({ lastRefreshedAt: 1 }, { expireAfterSeconds: 6 * 60 * 60 })
 
 // ─── API Usage (daily counters) ────────────────────────────────────────────────
 // One row per UTC day, counting how many Etsy / Google API calls were made that
@@ -98,12 +101,11 @@ const KeywordHistorySchema = new Schema<IKeywordHistory>({
 KeywordHistorySchema.index({ userId: 1, searchedAt: -1 })
 
 /**
- * Retention for snapshot history: ~13 months.
- *
- * Long enough to show a full year of seasonality plus a like-for-like comparison
- * against the same month last year; short enough to be a real, enforced limit
- * rather than "we keep Etsy data forever". Etsy's caching rule (6h listings /
- * 24h other) governs re-displaying their content AS CURRENT — which we never do:
+ * Retention for snapshot history: SNAPSHOT_RETENTION_DAYS (90 days), the longest
+ * range the sales history views offer. Etsy's API Terms say stored content must be
+ * kept no longer than reasonably necessary, so this is an enforced limit. Etsy's
+ * caching rule (6h listings / 24h other) governs re-displaying their content AS
+ * CURRENT, which we never do:
  * every current figure is fetched live, and a snapshot is only ever rendered as a
  * dated historical measurement. This bound keeps that distinction honest.
  */
@@ -134,28 +136,6 @@ ShopSnapshotSchema.index({ shopId: 1, capturedAt: -1 })
 // Enforces the retention bound in the database rather than in a comment.
 ShopSnapshotSchema.index({ capturedAt: 1 }, { expireAfterSeconds: SNAPSHOT_TTL_SECONDS })
 
-// ─── Listing Snapshot ──────────────────────────────────────────────────────────
-// Powers "Changes" — what a competitor edited (title/tags/price), which Etsy's
-// last_modified_timestamp flags but never describes.
-const ListingSnapshotSchema = new Schema<IListingSnapshot>({
-  listingId:  { type: Number, required: true, index: true },
-  shopId:     { type: Number, required: true, index: true },
-  day:        { type: String, required: true },
-  title:      { type: String, default: '' },
-  tags:       { type: [String], default: [] },
-  price:      { type: Number, default: 0 },
-  currency:   { type: String, default: 'USD' },
-  views:      { type: Number, default: 0 },
-  favorers:   { type: Number, default: 0 },
-  capturedAt: { type: Date, default: Date.now },
-}, { timestamps: false })
-
-ListingSnapshotSchema.index({ listingId: 1, day: 1 }, { unique: true })
-// Same enforced retention bound as ShopSnapshot. This one holds actual Etsy
-// listing CONTENT (title/tags/price), so capping it matters more, not less.
-ListingSnapshotSchema.index({ capturedAt: 1 }, { expireAfterSeconds: SNAPSHOT_TTL_SECONDS })
-ListingSnapshotSchema.index({ listingId: 1, capturedAt: -1 })
-
 // ─── Tracked Shop ──────────────────────────────────────────────────────────────
 // Shops a user has starred for guaranteed daily capture by the cron route.
 const TrackedShopSchema = new Schema<ITrackedShop>({
@@ -168,7 +148,6 @@ TrackedShopSchema.index({ userId: 1, shopId: 1 }, { unique: true })
 
 export const User          = models.User          ?? model<IUserDoc>('User', UserSchema)
 export const ShopSnapshot    = models.ShopSnapshot    ?? model<IShopSnapshot>('ShopSnapshot', ShopSnapshotSchema)
-export const ListingSnapshot = models.ListingSnapshot ?? model<IListingSnapshot>('ListingSnapshot', ListingSnapshotSchema)
 export const TrackedShop     = models.TrackedShop     ?? model<ITrackedShop>('TrackedShop', TrackedShopSchema)
 export const OTP           = models.OTP           ?? model<IOTP>('OTP', OTPSchema)
 export const KeywordCache  = models.KeywordCache  ?? model<IKeywordCache>('KeywordCache', KeywordCacheSchema)

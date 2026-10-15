@@ -36,7 +36,7 @@ export function KeywordTool() {
             showed demo data. The old copy said it did, which is both untrue and
             the worst possible claim to make to an Etsy API reviewer. */}
         <p style={{ fontSize: 18, color: '#6E6E64', lineHeight: 1.5, letterSpacing: '-0.14px', maxWidth: 520, marginBottom: 48 }}>
-          Enter any product keyword for real numbers measured live from the official Etsy API — no sign-up, no demo data.
+          Enter any product keyword for real numbers measured live from the official Etsy API. Free account required.
         </p>
 
         <div className="rpad-card" style={{ background: C.paper, border: `1px solid ${C.hairInk}`, borderRadius: 24, padding: 28 }}>

@@ -474,20 +474,6 @@ export interface IShopSnapshot {
   capturedAt: Date
 }
 
-export interface IListingSnapshot {
-  _id?: string
-  listingId: number
-  shopId: number
-  day: string
-  title: string
-  tags: string[]
-  price: number
-  currency: string
-  views: number
-  favorers: number
-  capturedAt: Date
-}
-
 export interface ITrackedShop {
   _id?: string
   userId: string

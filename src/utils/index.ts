@@ -1,12 +1,13 @@
 /**
- * How long snapshot history is kept, in days (~13 months).
+ * How long shop snapshot history is kept, in days: the longest range the sales
+ * history views offer (3 months).
  *
  * Lives here rather than in lib/models so the Methodology page — a client
  * component — can quote the real number without importing mongoose. The TTL
  * index in lib/models reads this, so the number the public page states and the
  * number the database enforces cannot drift apart.
  */
-export const SNAPSHOT_RETENTION_DAYS = 400
+export const SNAPSHOT_RETENTION_DAYS = 90
 
 export const C = {
   // ── Vibrant SaaS palette — orange primary, purple secondary, green success ──

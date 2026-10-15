@@ -4,7 +4,7 @@ import { Toaster }   from 'react-hot-toast'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title:       'Rankkw — Etsy Keyword Research & Analytics',
+  title:       'Rankkw: Keyword Research & Analytics for Etsy Sellers',
   description: 'Data-driven keyword research, competition analysis, and trend tracking for Etsy sellers.',
   keywords:    ['Etsy SEO', 'Etsy keyword research', 'Etsy analytics'],
   openGraph:   { title: 'Rankkw', description: 'Keyword research for Etsy sellers.', type: 'website' },

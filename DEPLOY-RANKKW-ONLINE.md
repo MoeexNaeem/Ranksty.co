@@ -68,7 +68,7 @@ In the Etsy developer portal, for the **rankkw.online** app:
 - Callback URL: `https://rankkw.online/api/etsy/oauth/callback`
 - Then "Request Commercial Access". Describe it as a keyword research and shop
   analytics tool for Etsy sellers that uses only the official API, OAuth (PKCE)
-  for shop data, and caches listing data for at most 5 hours.
+  for shop data, and never shows Etsy data more than 6 hours old.
 
 What the site already does for the review:
 
@@ -80,8 +80,12 @@ What the site already does for the review:
 - Every call sends the keystring **and** shared secret (`x-api-key`), required
   since 9 February 2026.
 - OAuth with PKCE for private shop data.
-- Listing data is shown at most 5 hours old (Etsy allows 6), including the
-  saved packages in Collective Keyword Search.
+- Etsy data is always shown less than 6 hours old (Etsy allows 6 for listings,
+  24 for other content).
+- Stored Etsy data is minimal: shop-level numbers for sales history (deleted
+  after 90 days); no copies of listing titles, tags or prices.
+- Users can delete their account and all its data from the Profile page, and
+  disconnect their Etsy shop at any time.
 - Privacy Policy, Terms, Refund, Service Policy, Methodology, About and a
   working Contact form, all on rankkw.online.
 - No invented figures, testimonials or "featured in" logos.
