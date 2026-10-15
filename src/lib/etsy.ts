@@ -41,7 +41,9 @@ if (!ETSY_API_KEY && process.env.NODE_ENV === 'production') {
 // near-match variants), which sails past that ceiling and comes back 429. Every
 // public call funnels through this gate. The 8/sec budget (headroom under Etsy's
 // ~10/sec) is split across the PM2 workers, which each run their own gate.
-const RATE_LIMIT_PER_SEC = 8 / Math.max(1, Number(process.env.PM2_INSTANCES) || 1)
+// ETSY_RATE_PER_SEC: the app's Etsy limit per second (default 8; set it under the
+// key's own limit, e.g. 4 for a 5-per-second key awaiting commercial approval).
+const RATE_LIMIT_PER_SEC = (Number(process.env.ETSY_RATE_PER_SEC) || 8) / Math.max(1, Number(process.env.PM2_INSTANCES) || 1)
 const MIN_GAP_MS = 1000 / RATE_LIMIT_PER_SEC
 
 let lastCallAt = 0
