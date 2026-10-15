@@ -1,5 +1,7 @@
 'use client'
 import { useState, useCallback, useRef } from 'react'
+import Link from 'next/link'
+import axios from 'axios'
 import { useKeywordSearch } from '@/hooks/useKeywords'
 import { useAppStore }      from '@/store/app'
 import { KeywordTable }     from '@/components/dashboard/KeywordTable'
@@ -12,7 +14,9 @@ export function KeywordTool() {
   const ref   = useRef<HTMLInputElement>(null)
   const [q, setQ] = useState('')
   const addR  = useAppStore(s => s.addRecentSearch)
-  const { data, isLoading, isError } = useKeywordSearch(q)
+  const { data, isLoading, isError, error } = useKeywordSearch(q)
+  // Searches need an account (the API is login-gated), so a visitor gets a sign-up prompt.
+  const needsAccount = isError && axios.isAxiosError(error) && error.response?.status === 401
 
   const go = useCallback(() => {
     const v = ref.current?.value.trim() ?? ''; if (v.length < 2) return
@@ -69,7 +73,14 @@ export function KeywordTool() {
           )}
 
           {/* Error */}
-          {isError && <p style={{ textAlign:'center', color:'#c00', padding:'24px 0', fontSize:14 }}>Failed to load. Please try again.</p>}
+          {needsAccount && (
+            <div style={{ textAlign:'center', padding:'24px 0' }}>
+              <p style={{ fontSize:15, color:C.charcoal, marginBottom:14 }}>Create a free account to search &ldquo;{q}&rdquo; with live data.</p>
+              <Link href="/register" style={{ display:'inline-block', background:C.orange, color:'#fff', textDecoration:'none', fontSize:14.5, fontWeight:600, padding:'11px 24px', borderRadius:10 }}>Start free</Link>
+              <span style={{ display:'block', fontSize:13, color:'#8a8a8a', marginTop:10 }}>Already have one? <Link href="/login" style={{ color:C.orange }}>Log in</Link></span>
+            </div>
+          )}
+          {isError && !needsAccount && <p style={{ textAlign:'center', color:'#c00', padding:'24px 0', fontSize:14 }}>Failed to load. Please try again.</p>}
 
           {/* Results */}
           {data && !isLoading && (

@@ -6,10 +6,13 @@ import { isAdmin } from '@/lib/auth/roles'
 import { getUsageToday } from '@/lib/usage'
 import type { ApiResponse } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 /**
- * Admin system stats: how many keywords are saved in the permanent
+ * Admin system stats: how many keywords are saved in the
  * `collectivekeyworddatas` store, and how many Etsy / Google API calls have been
  * made today.
  */

@@ -4,7 +4,6 @@ import { Navbar } from '@/components/landing/Navbar'
 import { Footer } from '@/components/landing/Sections'
 import { C } from '@/utils'
 import { Icon } from '@/components/ui/Icon'
-import { SocialRow } from '@/components/ui/Social'
 
 /**
  * One inbox, one phone, one address — all real and monitored.
@@ -26,8 +25,8 @@ const CONTACT_CHANNELS: {
   {
     icon: 'mail',
     label: 'Email',
-    value: 'support@ranktsy.co',
-    href: 'mailto:support@ranktsy.co',
+    value: 'support@rankkw.online',
+    href: 'mailto:support@rankkw.online',
     desc: 'Support, billing, partnerships and press — everything reaches the same inbox. We reply within 24 hours on business days.',
   },
   {
@@ -52,12 +51,12 @@ const FAQS = [
     a: 'We aim to respond to all inquiries within 24 hours on business days. Technical support tickets usually get a first response within a few hours.',
   },
   {
-    q: 'Is Ranktsy officially affiliated with Etsy?',
-    a: "No. Ranktsy is an independent analytics tool. The term 'Etsy' is a trademark of Etsy, Inc. We are not endorsed, certified, or affiliated with Etsy, Inc. in any way.",
+    q: 'Is Rankkw officially affiliated with Etsy?',
+    a: "No. Rankkw is an independent analytics tool. The term 'Etsy' is a trademark of Etsy, Inc. We are not endorsed, certified, or affiliated with Etsy, Inc. in any way.",
   },
   {
     q: 'Do you offer a free trial?',
-    a: "Yes! Our Sprout plan is forever free with 5 keyword searches per day. Paid plans include a 14-day free trial — no credit card required to start.",
+    a: "Rankkw is free while it is in beta, with full access to the tools. No credit card is needed to sign up.",
   },
   {
     q: 'Can I request a feature?',
@@ -80,17 +79,30 @@ const inputStyle = {
 }
 
 export default function ContactPage() {
-  const [form, setForm] = useState({ name: '', email: '', subject: 'General', message: '' })
+  const [form, setForm] = useState({ name: '', email: '', subject: 'General', message: '', website: '' })
   const [submitted, setSubmitted] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const handleSubmit = () => {
-    if (!form.name || !form.email || !form.message) return
-    setSubmitted(true)
+  const handleSubmit = async () => {
+    if (sending) return
+    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) { setError('Please fill in your name, email and message.'); return }
+    setSending(true); setError('')
+    try {
+      const r = await fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      const d = await r.json().catch(() => null)
+      if (r.ok && d?.success) setSubmitted(true)
+      else setError(d?.error || 'Your message could not be sent. Please email support@rankkw.online directly.')
+    } catch {
+      setError('Your message could not be sent. Please email support@rankkw.online directly.')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -216,33 +228,6 @@ export default function ContactPage() {
             })}
           </div>
 
-          {/* Social — a fourth way to reach us, but not a support channel, so it
-              sits below the cards rather than becoming one of them. */}
-          <div
-            className="rstack-sm"
-            style={{
-              maxWidth: 1100,
-              margin: '32px auto 0',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 18,
-              flexWrap: 'wrap',
-            }}
-          >
-            <p
-              style={{
-                fontSize: 11,
-                fontFamily: "'DM Sans', monospace",
-                color: '#808080',
-                textTransform: 'uppercase',
-                letterSpacing: '0.07em',
-                margin: 0,
-              }}
-            >
-              Follow Ranktsy
-            </p>
-            <SocialRow color="#6E6E64" hoverColor={C.orange} size={19} gap={16} />
-          </div>
         </div>
 
         {/* ── Form + FAQ ── */}
@@ -431,8 +416,15 @@ export default function ContactPage() {
                     />
                   </div>
 
+                  {/* Left empty by people; bots that fill it are dropped server-side. */}
+                  <input name="website" value={form.website} onChange={handleChange} tabIndex={-1} autoComplete="off" aria-hidden="true"
+                    style={{ position: 'absolute', left: -9999, width: 1, height: 1, opacity: 0 }} />
+
+                  {error && <p role="alert" style={{ fontSize: 14, color: '#B42318', margin: 0 }}>{error}</p>}
+
                   <button
                     onClick={handleSubmit}
+                    disabled={sending}
                     style={{
                       background: C.orange,
                       border: 'none',
@@ -441,15 +433,16 @@ export default function ContactPage() {
                       borderRadius: 28,
                       fontSize: 14.5,
                       fontWeight: 500,
-                      cursor: 'pointer',
+                      cursor: sending ? 'default' : 'pointer',
                       fontFamily: 'inherit',
                       width: 'fit-content',
                       transition: 'opacity 0.2s',
+                      opacity: sending ? 0.6 : 1,
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                    onMouseEnter={(e) => { if (!sending) e.currentTarget.style.opacity = '0.85' }}
+                    onMouseLeave={(e) => { if (!sending) e.currentTarget.style.opacity = '1' }}
                   >
-                    Send message →
+                    {sending ? 'Sending…' : 'Send message →'}
                   </button>
                 </div>
               )}

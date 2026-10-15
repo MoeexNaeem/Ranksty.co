@@ -4,10 +4,10 @@ import { Toaster }   from 'react-hot-toast'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title:       'Ranktsy — Etsy Keyword Research & Analytics',
+  title:       'Rankkw — Etsy Keyword Research & Analytics',
   description: 'Data-driven keyword research, competition analysis, and trend tracking for Etsy sellers.',
   keywords:    ['Etsy SEO', 'Etsy keyword research', 'Etsy analytics'],
-  openGraph:   { title: 'Ranktsy', description: 'Keyword research for Etsy sellers.', type: 'website' },
+  openGraph:   { title: 'Rankkw', description: 'Keyword research for Etsy sellers.', type: 'website' },
   robots:      { index: true, follow: true },
 }
 // Emits <meta name="viewport" content="width=device-width, initial-scale=1">.
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        {/* DM Sans (Google Fonts) — the Cosmica substitute for Ranktsy's editorial
+        {/* DM Sans (Google Fonts) — the Cosmica substitute for Rankkw's editorial
             zinc-grid style. No <head> wrapper: React 19 hoists link tags into the
             head on its own, and adding one back would break the viewport meta. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="" />

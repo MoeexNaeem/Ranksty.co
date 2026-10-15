@@ -87,7 +87,7 @@ export default function MethodologyPage() {
         {/* Body */}
         <div className="rpad-sm" style={{ maxWidth: 1000, margin: '0 auto', padding: '64px 40px 96px' }}>
           <p style={{ fontSize: 17, color: C.ink, lineHeight: 1.75, marginBottom: 52, borderLeft: `3px solid ${C.orange}`, paddingLeft: 20 }}>
-            Ranktsy uses <strong>only</strong> the official <a href="https://developers.etsy.com" target="_blank" rel="noopener noreferrer" style={{ color: C.orange, textDecoration: 'underline', textUnderlineOffset: 3 }}>Etsy Open API v3</a>.
+            Rankkw uses <strong>only</strong> the official <a href="https://developers.etsy.com" target="_blank" rel="noopener noreferrer" style={{ color: C.orange, textDecoration: 'underline', textUnderlineOffset: 3 }}>Etsy Open API v3</a>.
             No scraping, no unofficial endpoints, no third-party data proxies. Some fields are shown exactly as Etsy returns them;
             other figures are <strong>estimates we derive</strong> from that data — and we always label them as such.
           </p>
@@ -130,7 +130,7 @@ export default function MethodologyPage() {
           <Section title="What we deliberately don’t show">
             <p style={{ fontSize: 15.5, color: C.graphite, lineHeight: 1.6, marginBottom: 22 }}>
               Etsy publishes no search volume, no click data and no history. Rather than estimate those into existence,
-              Ranktsy leaves them out and tells you why. A missing number is honest; a plausible one that happens to be
+              Rankkw leaves them out and tells you why. A missing number is honest; a plausible one that happens to be
               wrong is the thing that costs you money.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

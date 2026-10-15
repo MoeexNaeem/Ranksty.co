@@ -4,6 +4,9 @@ import { googleKeywordIdeas, googleAccountCurrency, isGoogleAdsConfigured, norma
 import { guardSearch } from '@/lib/searchGate'
 import type { ApiResponse, KeywordIdeasResponse } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 /**

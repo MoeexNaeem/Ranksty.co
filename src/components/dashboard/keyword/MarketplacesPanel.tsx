@@ -92,7 +92,7 @@ export const MarketplacesPanel = memo(function MarketplacesPanel({
       <Card>
         <SectionTitle>Where &ldquo;{query}&rdquo; sells</SectionTitle>
         <p style={{ fontSize: 13.5, color: C.graphite, lineHeight: 1.6, marginTop: -8 }}>
-          Ranktsy is built on the <strong style={{ color: C.ink }}>official Etsy Open API</strong>{' '}— that&apos;s the only marketplace
+          Rankkw is built on the <strong style={{ color: C.ink }}>official Etsy Open API</strong>{' '}— that&apos;s the only marketplace
           we can report real numbers for, and we won&apos;t invent the rest. Amazon and eBay open a live search in a new tab so you
           can eyeball demand yourself. Google fills in automatically once Google Ads credentials are configured.
         </p>

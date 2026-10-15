@@ -4,6 +4,9 @@ import { getKeywordCore, nearKey } from '@/lib/keywords'
 import { getNearMatches } from '@/lib/etsy'
 import type { ApiResponse, NearMatch } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 /**

@@ -1,13 +1,10 @@
 'use client'
 /**
- * Ranktsy landing — vibrant SaaS design (orange/purple/green) matching the
- * reference mockup: split hero with a dashboard preview, colorful tool grid,
- * stats bar, trends/testimonial band, gradient CTA, trust logos. Pricing is
- * intentionally omitted (commercial-access compliance parity with Rankkw).
- *
- * NOTE: the testimonial, the stats-bar figures, the "Trusted by 10,000+" line
- * and the "featured in" logo strip are PLACEHOLDER marketing content — replace
- * with real figures/quotes before launch.
+ * rankkw.online landing: vibrant SaaS design (orange/purple/green). Exports the
+ * nav, the split hero with its dashboard preview, and the colorful tool grid; the
+ * page composes them with the real content sections (app/page.tsx). Pricing is
+ * intentionally omitted. No invented figures, testimonials or press logos: only
+ * what is true about the product goes on this page.
  */
 import Link from 'next/link'
 
@@ -41,7 +38,7 @@ function Wordmark({ dark = false }: { dark?: boolean }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
       <span style={{ width: 32, height: 32, borderRadius: 9, background: O, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 18 }}>R</span>
-      <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.03em', color: dark ? '#fff' : INK }}>Ranktsy</span>
+      <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.03em', color: dark ? '#fff' : INK }}>Rankkw</span>
     </span>
   )
 }
@@ -66,13 +63,15 @@ export function Nav() {
 }
 
 /* ─── Dashboard preview mockup ─────────────────────────────────────── */
+// An illustration of the dashboard, labelled "Sample data". Only metrics the
+// product really shows (no CTR or traffic figures: Etsy does not provide them).
 function DashMock() {
   const nav = ['Overview', 'Keyword Research', 'Product Research', 'Shop Analyzer', 'Listing Audit', 'Competitor Research', 'Trend Buzz', 'Rank Tracker', 'AI Listing Generator']
   const stats = [
-    { k: 'Keywords', v: '85,320', d: '+12.5%', up: true },
-    { k: 'Total Views', v: '3.2M', d: '+18.7%', up: true },
-    { k: 'Avg. CTR', v: '6.48%', d: '+8.2%', up: true },
-    { k: 'AI Credits', v: '2,450', d: '-20%', up: false },
+    { k: 'Search volume', v: '12,100', d: 'per month' },
+    { k: 'Competition', v: '48,213', d: 'listings' },
+    { k: 'Avg. favorites', v: '1,240', d: 'top listings' },
+    { k: 'Difficulty', v: '34', d: 'Medium' },
   ]
   const pts = [8, 22, 15, 30, 24, 40, 34, 52, 46, 64, 74]
   const w = 300, h = 90
@@ -92,16 +91,16 @@ function DashMock() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div>
             <p style={{ fontSize: 13, fontWeight: 700, color: INK }}>Overview</p>
-            <p style={{ fontSize: 9.5, color: GRAY }}>Welcome back, Zafar 👋</p>
+            <p style={{ fontSize: 9.5, color: GRAY }}>Keyword: silver necklace</p>
           </div>
-          <span style={{ fontSize: 8.5, fontWeight: 600, color: GREEN, background: '#ECFDF5', padding: '3px 8px', borderRadius: 100 }}>● Live</span>
+          <span style={{ fontSize: 8.5, fontWeight: 600, color: GRAY, background: '#F3F4F6', padding: '3px 8px', borderRadius: 100 }}>Sample data</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 12 }}>
           {stats.map(s => (
             <div key={s.k} style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '8px 8px' }}>
               <p style={{ fontSize: 7.5, color: GRAY, marginBottom: 3 }}>{s.k}</p>
               <p style={{ fontSize: 13, fontWeight: 700, color: INK, letterSpacing: '-0.02em' }}>{s.v}</p>
-              <p style={{ fontSize: 7.5, fontWeight: 600, color: s.up ? GREEN : O, marginTop: 2 }}>{s.up ? '↑' : '↓'} {s.d}</p>
+              <p style={{ fontSize: 7.5, fontWeight: 500, color: GRAY, marginTop: 2 }}>{s.d}</p>
             </div>
           ))}
         </div>
@@ -150,10 +149,10 @@ export function Hero() {
             ✦ AI-Powered Etsy SEO Platform
           </span>
           <h1 style={{ fontSize: 'clamp(40px,5.2vw,62px)', fontWeight: 800, color: INK, letterSpacing: '-0.035em', lineHeight: 1.04, marginBottom: 20 }}>
-            Grow Your <span style={{ color: O }}>Etsy</span> Business <span style={{ color: P }}>with Smart SEO</span>
+            Grow Your Etsy Business <span style={{ color: P }}>with Smart SEO</span>
           </h1>
           <p style={{ fontSize: 18, color: GRAY, lineHeight: 1.6, maxWidth: 460, marginBottom: 28 }}>
-            Ranktsy gives you the data, tools and AI insights you need to rank higher, get more traffic and increase sales on Etsy.
+            Rankkw gives you the data, tools and AI insights you need to rank higher, get more traffic and increase sales on Etsy.
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 14, padding: 6, maxWidth: 440, boxShadow: '0 4px 16px rgba(17,24,39,0.05)' }}>
             <span style={{ paddingLeft: 12, color: GRAY, display: 'flex' }}>{ICONS.search}</span>
@@ -189,7 +188,7 @@ export function Tools() {
     { icon: ICONS.search, c: O, t: 'Keyword Research', s: 'Find high-volume, low competition keywords' },
     { icon: ICONS.box, c: P, t: 'Product Research', s: 'Discover winning products before your competitors' },
     { icon: ICONS.store, c: '#3B82F6', t: 'Shop Analyzer', s: 'Analyze any Etsy shop in detail' },
-    { icon: ICONS.users, c: GREEN, t: 'Competitor Research', s: 'Spy on top sellers and their best strategies' },
+    { icon: ICONS.users, c: GREEN, t: 'Competitor Research', s: 'See which shops lead your niche and why' },
     { icon: ICONS.audit, c: '#EC4899', t: 'Listing Audit', s: 'Get SEO score and actionable improvement tips' },
     { icon: ICONS.spark, c: O, t: 'AI Listing Generator', s: 'Generate titles, tags & descriptions with AI' },
     { icon: ICONS.flame, c: P, t: 'Trend Buzz', s: "See what's trending on Etsy right now" },
@@ -213,130 +212,5 @@ export function Tools() {
         </div>
       </div>
     </section>
-  )
-}
-
-/* ─── Stats bar ───────────────────────────────────────────────────── */
-function Stats() {
-  const stats = [
-    { icon: ICONS.users, v: '10,000+', s: 'Active Sellers' },
-    { icon: ICONS.db, v: '2M+', s: 'Keywords Database' },
-    { icon: ICONS.audit, v: '50,000+', s: 'Listings Analyzed' },
-    { icon: ICONS.shield, v: '99.9%', s: 'API Uptime' },
-    { icon: ICONS.headset, v: '24/7', s: 'Customer Support' },
-    { icon: ICONS.globe, v: '150+', s: 'Countries' },
-  ]
-  return (
-    <section style={{ background: CARD, padding: '0 24px 80px' }}>
-      <div className="rstats" style={{ maxWidth: 1200, margin: '0 auto', background: '#F3EEFE', borderRadius: 24, padding: '34px 28px', display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 20 }}>
-        {stats.map(s => (
-          <div key={s.s} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ width: 40, height: 40, borderRadius: 11, background: '#fff', color: P, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</span>
-            <span><span style={{ display: 'block', fontSize: 22, fontWeight: 800, color: INK, letterSpacing: '-0.02em' }}>{s.v}</span><span style={{ fontSize: 12.5, color: GRAY }}>{s.s}</span></span>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-/* ─── Trends · Testimonial ────────────────────────────────────────── */
-function Band() {
-  const trends = [['Wedding Invitation', '+125%'], ['Digital Planner', '+98%'], ['Resume Template', '+87%'], ['Wall Art', '+74%'], ['Teacher Appreciation', '+62%']]
-  const cardBase: React.CSSProperties = { background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 20, padding: 24 }
-  return (
-    <section style={{ background: BG, padding: '80px 24px' }}>
-      <div className="rband" style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }}>
-        <div style={cardBase}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: INK }}>Etsy Trends This Week</h3>
-            <a href="#" style={{ fontSize: 12, color: O, textDecoration: 'none', fontWeight: 600 }}>See all →</a>
-          </div>
-          {trends.map(([n, d], i) => (
-            <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < 4 ? `1px solid ${BORDER}` : 'none' }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: GRAY, width: 12 }}>{i + 1}</span>
-              <span style={{ flex: 1, fontSize: 13.5, color: INK }}>{n}</span>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: GREEN }}>↑ {d}</span>
-            </div>
-          ))}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16, padding: 14, background: BG, borderRadius: 14 }}>
-            <div style={{ width: 66, height: 66, borderRadius: '50%', background: `conic-gradient(${O} 0% 62%, ${P} 62% 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fff' }} />
-            </div>
-            <div><p style={{ fontSize: 11, color: GRAY }}>Total Searches</p><p style={{ fontSize: 22, fontWeight: 800, color: INK }}>125.6K</p><p style={{ fontSize: 11, fontWeight: 600, color: GREEN }}>↑ 18.3% vs last week</p></div>
-          </div>
-        </div>
-        <div style={cardBase}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 16 }}>What Our Users Say</h3>
-          <span style={{ fontSize: 40, color: O, lineHeight: 0.5, fontWeight: 800 }}>&ldquo;</span>
-          <p style={{ fontSize: 15, color: INK, lineHeight: 1.6, margin: '8px 0 18px' }}>Ranktsy is a game changer! My traffic increased by 300% in just 30 days. The keyword data is incredibly accurate.</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-            <span style={{ width: 42, height: 42, borderRadius: '50%', background: P, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>SJ</span>
-            <div><p style={{ fontSize: 14, fontWeight: 700, color: INK }}>Sarah Johnson</p><p style={{ fontSize: 12.5, color: GRAY }}>Etsy Shop Owner</p></div>
-          </div>
-          <p style={{ color: '#F59E0B', fontSize: 16, marginTop: 14 }}>★★★★★</p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ─── Gradient CTA ────────────────────────────────────────────────── */
-function CTA() {
-  return (
-    <section style={{ background: BG, padding: '0 24px 64px' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', background: `linear-gradient(115deg, ${P} 0%, #A84FD0 45%, ${O} 100%)`, borderRadius: 28, padding: '52px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 28, flexWrap: 'wrap', boxShadow: '0 30px 70px rgba(139,92,246,0.28)' }}>
-        <div>
-          <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(255,255,255,0.85)', marginBottom: 12 }}>READY TO GROW?</p>
-          <h2 style={{ fontSize: 'clamp(28px,3.4vw,40px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', marginBottom: 12 }}>Start Your Etsy Success Journey Today</h2>
-          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.88)', maxWidth: 520 }}>Join thousands of successful Etsy sellers using Ranktsy to grow their business.</p>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start' }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <Link href="/register" style={{ background: '#fff', color: O, textDecoration: 'none', fontSize: 15.5, fontWeight: 700, padding: '14px 26px', borderRadius: 12, boxShadow: '0 8px 22px rgba(17,24,39,0.16)' }}>Get started free</Link>
-            <button style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.5)', color: '#fff', fontSize: 15.5, fontWeight: 600, padding: '14px 22px', borderRadius: 12, cursor: 'pointer', fontFamily: FONT }}>{ICONS.play} Watch Demo</button>
-          </div>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>No credit card required • Cancel anytime</p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ─── Trust logos + footer ────────────────────────────────────────── */
-function TrustFooter() {
-  const logos = ['Etsy', 'ahrefs', 'Entrepreneur', 'shopify', 'Forbes', 'Mashable', 'BUSINESS INSIDER']
-  return (
-    <footer style={{ background: CARD, borderTop: `1px solid ${BORDER}`, padding: '40px 24px 48px' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', textAlign: 'center' }}>
-        <p style={{ fontSize: 13, color: GRAY, marginBottom: 20 }}>Trusted by top Etsy sellers and featured in</p>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '18px 40px', flexWrap: 'wrap', marginBottom: 34 }}>
-          {logos.map(l => <span key={l} style={{ fontSize: 18, fontWeight: 700, color: '#9CA3AF', letterSpacing: l === 'BUSINESS INSIDER' ? '0.04em' : '-0.02em' }}>{l}</span>)}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', paddingTop: 26, borderTop: `1px solid ${BORDER}` }}>
-          <Wordmark />
-          <p style={{ fontSize: 13, color: GRAY }}>© {new Date().getFullYear()} Ranktsy. Not affiliated with Etsy, Inc.</p>
-          <div style={{ display: 'flex', gap: 20 }}>
-            {[['Privacy', '/privacy'], ['Terms', '/terms'], ['Contact', '/contact']].map(([t, h]) => <Link key={t} href={h} style={{ fontSize: 13, color: GRAY, textDecoration: 'none' }}>{t}</Link>)}
-          </div>
-        </div>
-      </div>
-    </footer>
-  )
-}
-
-export function NewLanding() {
-  return (
-    <>
-      <Nav />
-      <main>
-        <Hero />
-        <Tools />
-        <Stats />
-        <Band />
-        <CTA />
-      </main>
-      <TrustFooter />
-    </>
   )
 }

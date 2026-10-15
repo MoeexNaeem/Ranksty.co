@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getShopSections } from '@/lib/etsy'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')?.trim()

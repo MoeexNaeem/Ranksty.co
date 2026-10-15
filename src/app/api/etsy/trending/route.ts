@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { getTrendingListings } from '@/lib/etsy'
 import { memCache, cacheKey, CACHE_TTL } from '@/lib/cache'
 
-export const revalidate = 1800
+// Per request (memory-cached inside): never fetched at build time, so builds never
+// depend on Etsy and listing data is never frozen into a deploy.
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const key    = cacheKey('trending', 'featured')

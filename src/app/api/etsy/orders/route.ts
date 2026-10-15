@@ -4,6 +4,9 @@ import { getValidEtsyAuth } from '@/lib/etsy-tokens'
 import { getShopReceiptsPaged } from '@/lib/etsy'
 import type { ApiResponse, OrdersInsight } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 // Country names for the ISO codes Etsy actually returns. Unmapped codes fall

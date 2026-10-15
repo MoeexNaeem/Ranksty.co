@@ -1,5 +1,5 @@
 /**
- * Google Gemini — the AI provider for Ranktsy's generation features (titles,
+ * Google Gemini — the AI provider for Rankkw's generation features (titles,
  * tags, descriptions, and the listing-improvement suggestions).
  *
  * Scope boundary that matters for this codebase: Gemini WRITES COPY. It never

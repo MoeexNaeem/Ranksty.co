@@ -3,6 +3,9 @@ import { normalizeGeo } from '@/lib/google-ads'
 import { getCollectiveKeyword } from '@/lib/collective-keywords'
 import type { ApiResponse, CollectiveKeywordResult } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 // A cold keyword now builds its FULL package (core + related probes + reviews),
 // which can take a while behind the Etsy rate gate. Allow a long run (Vercel Pro

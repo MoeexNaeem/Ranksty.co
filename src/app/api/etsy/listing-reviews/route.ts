@@ -3,6 +3,9 @@ import { memCache, cacheKey, CACHE_TTL } from '@/lib/cache'
 import { getListingReviewCount } from '@/lib/etsy'
 import type { ApiResponse } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 const MAX_IDS = 100

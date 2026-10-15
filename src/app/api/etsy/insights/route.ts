@@ -4,6 +4,9 @@ import { getValidEtsyAuth } from '@/lib/etsy-tokens'
 import { getShopByOwner, getOwnerListings, getShopReceipts } from '@/lib/etsy'
 import { userIdFromToken } from '@/lib/etsy-oauth'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

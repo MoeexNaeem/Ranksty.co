@@ -5,6 +5,9 @@ import { guardSearch } from '@/lib/searchGate'
 import type { SearchOpts as EtsySearchOpts } from '@/lib/etsy'
 import type { ApiResponse, HotProduct, HotProductsResponse, EtsyListing } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 /**

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { searchEtsyListings } from '@/lib/etsy'
 import { geminiJSON, isGeminiConfigured } from '@/lib/gemini'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 /**

@@ -5,6 +5,9 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { resolveShopId, getEtsyShop } from '@/lib/etsy'
 import type { ApiResponse } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 /**

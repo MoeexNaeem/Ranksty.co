@@ -7,10 +7,12 @@
  * time any keyword is searched, we serve the saved package straight from Mongo
  * and skip the ~3 Etsy calls + Google Ads call entirely.
  *
- * Freshness: saved rows are PERMANENT — there is no expiry, so a keyword searched
- * once is served from the DB forever (no repeat API calls). The weekly refresh
- * cron (/api/cron/refresh-collective) re-fetches every saved keyword and updates
- * it, stamping `lastRefreshedAt`, so the stored data stays current over time.
+ * Freshness (Etsy API Terms, caching): listing content may be shown at most 6 h
+ * old. A saved package is served only while its Etsy data is younger than
+ * CACHE_TTL.KEYWORD (5 h, safely inside that limit), measured from
+ * `lastRefreshedAt`, the time its Etsy data was last fetched. Older rows are
+ * re-fetched live and overwritten, so repeats within 5 h cost no API calls and
+ * nothing older is ever displayed.
  */
 import { connectDB } from '@/lib/db'
 import { CollectiveKeywordData } from '@/lib/models'
@@ -20,6 +22,11 @@ import { enrichRelatedCompetition, getListingReviewCount, attachImages, getNearM
 import { googleKeywordMetrics, googleAccountCurrency, isGoogleAdsConfigured } from '@/lib/google-ads'
 import { buildKeywordTrends } from '@/lib/trends'
 import type { CollectiveKeywordResult, KeywordSearchResponse, KeywordData, NearMatch } from '@/types'
+
+/** How long saved Etsy data may be shown, in ms (Etsy allows 6 h for listing content). */
+const MAX_AGE_MS = CACHE_TTL.KEYWORD * 1000
+/** Seconds of display life left for data fetched at `fetchedAt` (0 = too old). */
+const lifeLeft = (fetchedAt: string | Date) => Math.max(0, Math.floor((MAX_AGE_MS - (Date.now() - new Date(fetchedAt).getTime())) / 1000))
 
 /** Light shape check — a saved package must at least carry its stats block. */
 function looksComplete(d?: KeywordSearchResponse): boolean {
@@ -32,14 +39,6 @@ function looksComplete(d?: KeywordSearchResponse): boolean {
 const memKey = (kw: string, geo: string) => cacheKey('collective', 'v1', geo, kw)
 interface MemEntry { data: KeywordSearchResponse; savedAt: string }
 
-/**
- * Overwrite the in-memory layer for a keyword with fresh data — used by the
- * weekly refresh cron after it re-fetches, so the new data is served immediately
- * instead of waiting for the old memory entry to expire.
- */
-export function primeCollectiveMem(keyword: string, geo: string, data: KeywordSearchResponse): void {
-  memCache.set(memKey(keyword.trim().toLowerCase(), geo), { data, savedAt: new Date().toISOString() }, CACHE_TTL.KEYWORD)
-}
 
 /** Review count per listing id, cached 24h (shared key with /api/etsy/listing-reviews). */
 async function fetchListingReviews(ids: number[]): Promise<Record<number, number | null>> {
@@ -59,7 +58,7 @@ async function fetchListingReviews(ids: number[]): Promise<Record<number, number
 }
 
 /**
- * Build the COMPLETE keyword package that gets saved permanently — everything the
+ * Build the COMPLETE keyword package that gets saved (and served for 5 h) — everything the
  * card shows, so a saved keyword renders fully with zero extra API calls:
  *   • core stats + top listings + analysis      (getKeywordCore)
  *   • related keywords WITH competition/KD       (enrichRelatedCompetition)
@@ -147,12 +146,13 @@ async function backfillGoogle(data: KeywordSearchResponse, kw: string, geo: stri
 async function healCachedGoogle(data: KeywordSearchResponse, kw: string, geo: string, mk: string, savedAt: string): Promise<void> {
   const filled = await backfillGoogle(data, kw, geo)
   if (!filled) return
-  memCache.set(mk, { data, savedAt }, CACHE_TTL.KEYWORD)
+  const ttl = lifeLeft(savedAt)
+  if (ttl > 0) memCache.set(mk, { data, savedAt }, ttl)
+  // Only the Google figures changed: keep lastRefreshedAt (the Etsy data's age).
   connectDB()
     .then(() => CollectiveKeywordData.findOneAndUpdate(
       { keyword: kw, geo },
-      { $set: { data, lastRefreshedAt: new Date() } },
-      { upsert: true },
+      { $set: { data } },
     ))
     .catch(e => console.error(`[Collective] google backfill save "${kw}":`, e))
 }
@@ -160,8 +160,8 @@ async function healCachedGoogle(data: KeywordSearchResponse, kw: string, geo: st
 /**
  * Get one keyword's full package for the collective tool.
  *
- * DB-first: if a fresh `CollectiveKeywordData` row exists, return it as `cache`
- * with zero API calls. Otherwise fetch the live core package (which itself uses
+ * DB-first: if a `CollectiveKeywordData` row younger than 5 h exists, return it
+ * as `cache` with zero API calls. Otherwise fetch the live core package (which itself uses
  * the shared keyword cache), persist it as this keyword's package, and return it
  * as `live`.
  */
@@ -171,7 +171,7 @@ export async function getCollectiveKeyword(keyword: string, geo = 'US'): Promise
 
   // ── Memory-first — instant, and skips the slow Mongo round-trip on repeats ──
   const mem = memCache.get<MemEntry>(mk)
-  if (mem && looksComplete(mem.data)) {
+  if (mem && looksComplete(mem.data) && lifeLeft(mem.savedAt) > 0) {
     await healCachedGoogle(mem.data, kw, geo, mk, mem.savedAt)   // top up Google stats if this row predates enrichment
     return { keyword: kw, geo, data: mem.data, source: 'cache', savedAt: mem.savedAt }
   }
@@ -180,11 +180,13 @@ export async function getCollectiveKeyword(keyword: string, geo = 'US'): Promise
   try {
     await connectDB()
     const hit = await CollectiveKeywordData.findOne({ keyword: kw, geo }).lean()
-    // Permanent store: any complete saved row is served — no expiry check.
-    if (hit && looksComplete(hit.data as KeywordSearchResponse)) {
+    // Served only while its Etsy data is young enough to display (Etsy caching rule).
+    const fetchedAt = hit ? (hit.lastRefreshedAt ?? hit.searchedAt ?? hit.createdAt) : null
+    const ttl = fetchedAt ? lifeLeft(fetchedAt) : 0
+    if (hit && ttl > 0 && looksComplete(hit.data as KeywordSearchResponse)) {
       const data = hit.data as KeywordSearchResponse
-      const savedAt = new Date(hit.searchedAt ?? hit.createdAt ?? Date.now()).toISOString()
-      memCache.set(mk, { data, savedAt }, CACHE_TTL.KEYWORD)   // warm memory so the next hit is instant
+      const savedAt = new Date(fetchedAt!).toISOString()
+      memCache.set(mk, { data, savedAt }, ttl)   // warm memory, never past the 5 h display limit
       await healCachedGoogle(data, kw, geo, mk, savedAt)         // top up Google stats if this row predates enrichment
       return { keyword: kw, geo, data, source: 'cache', savedAt }
     }
@@ -200,7 +202,7 @@ export async function getCollectiveKeyword(keyword: string, geo = 'US'): Promise
   const savedAt = now.toISOString()
   memCache.set(mk, { data, savedAt }, CACHE_TTL.KEYWORD)       // serve repeats from memory, not the slow DB
 
-  // Persist this keyword's package PERMANENTLY (no expiry). Non-blocking: a failed
+  // Persist this keyword's package (served for 5 h, then re-fetched). Non-blocking: a failed
   // write must not fail the search — the user still gets live data. searchedAt is
   // set once (on first insert); lastRefreshedAt tracks the newest data.
   connectDB()

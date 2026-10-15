@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { searchEtsyListingsPaged, type SearchOpts } from '@/lib/etsy'
 import { guardSearch } from '@/lib/searchGate'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 // Etsy caps offset-based paging; keep it within a sane range.
 const MAX_OFFSET = 12000
 const SORTS = new Set(['score', 'price', 'created', 'updated'])

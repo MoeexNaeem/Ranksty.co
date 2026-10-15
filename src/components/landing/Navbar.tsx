@@ -75,7 +75,7 @@ export function Navbar() {
         <div className="rnav-inner" style={S.inner}>
           {/* Left: logo */}
           <Link href="/" style={S.logoWrap}>
-            <span style={{ fontSize: 22, fontWeight: 700, color: C.ink, letterSpacing: '-0.04em' }}>Ranktsy<span style={{ color: '#FF5A00' }}>.</span></span>
+            <span style={{ fontSize: 22, fontWeight: 700, color: C.ink, letterSpacing: '-0.04em' }}>Rankkw<span style={{ color: '#FF5A00' }}>.</span></span>
             <span style={S.beta}>Beta</span>
           </Link>
 

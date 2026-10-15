@@ -64,10 +64,9 @@ KeywordCacheSchema.index({ keyword: 1, geo: 1, createdAt: -1 })
 // ─── Collective Keyword Data ───────────────────────────────────────────────────
 // The Collective Keyword Search tool saves each searched keyword's FULL package
 // (the same KeywordSearchResponse a single search returns) as its own document.
-// PERMANENT: there is no TTL — a saved keyword is served from the DB indefinitely
-// (no repeat Etsy/Google calls). Freshness is maintained instead by the weekly
-// refresh cron (/api/cron/refresh-collective), which re-fetches each keyword and
-// updates it; `lastRefreshedAt` records when that last happened.
+// A saved package is served for 5 h after its Etsy data was fetched
+// (`lastRefreshedAt`), then re-fetched live: Etsy's API Terms allow listing
+// content to be shown at most 6 h old (lib/collective-keywords.ts).
 const CollectiveKeywordDataSchema = new Schema<ICollectiveKeywordData>({
   keyword:         { type: String, required: true, lowercase: true, trim: true },
   geo:             { type: String, default: 'US', uppercase: true, trim: true },

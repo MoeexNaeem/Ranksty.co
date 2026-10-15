@@ -8,7 +8,7 @@ const sections = [
     number: '01',
     title: 'Overview',
     content:
-      'Ranktsy is a digital, subscription-based software service. Because there is no physical product involved, there are no shipments, returns, or exchanges in the traditional sense. This policy explains when a refund may be issued for our paid subscription plans and how to request one.',
+      'Rankkw is a digital, subscription-based software service. Because there is no physical product involved, there are no shipments, returns, or exchanges in the traditional sense. This policy explains when a refund may be issued for our paid subscription plans and how to request one.',
     bullets: [],
   },
   {
@@ -44,7 +44,7 @@ const sections = [
     title: 'How to Request a Refund',
     content: 'To request a refund, email us with your account details and the reason for your request. We aim to review and respond to refund requests within 5 business days.',
     bullets: [
-      { label: 'Step 1', text: 'Email support@ranktsy.co with the subject line "Refund Request" and the email address associated with your Ranktsy account.' },
+      { label: 'Step 1', text: 'Email support@rankkw.online with the subject line "Refund Request" and the email address associated with your Rankkw account.' },
       { label: 'Step 2', text: 'Include the transaction date and, if available, the payment reference or receipt.' },
       { label: 'Step 3', text: 'We will review the request against the eligibility criteria above and respond with our decision.' },
     ],
@@ -216,7 +216,7 @@ export default function RefundPolicyPage() {
                 paddingLeft: 20,
               }}
             >
-              Ranktsy is a digital subscription service, so there is nothing to ship or physically return. This policy explains when a payment made through our payment partner may be refunded, and how to request it.
+              Rankkw is a digital subscription service, so there is nothing to ship or physically return. This policy explains when a payment made through our payment partner may be refunded, and how to request it.
             </p>
 
             {sections.map((s, i) => (
@@ -313,7 +313,7 @@ export default function RefundPolicyPage() {
                     }}
                   >
                     <a
-                      href="mailto:support@ranktsy.co"
+                      href="mailto:support@rankkw.online"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -325,10 +325,10 @@ export default function RefundPolicyPage() {
                       }}
                     >
                       <span style={{ opacity: 0.6, fontSize: 12 }}>EMAIL</span>
-                      support@ranktsy.co
+                      support@rankkw.online
                     </a>
                     <a
-                      href="https://ranktsy.co/contact"
+                      href="https://rankkw.online/contact"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -340,7 +340,7 @@ export default function RefundPolicyPage() {
                       }}
                     >
                       <span style={{ opacity: 0.6, fontSize: 12 }}>WEB</span>
-                      ranktsy.co/contact
+                      rankkw.online/contact
                     </a>
                   </div>
                 )}

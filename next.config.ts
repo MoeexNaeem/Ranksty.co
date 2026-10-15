@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // scripts/deploy.sh builds into .next-build while the live site keeps serving .next.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
+
   reactStrictMode: true,
 
   images: {
@@ -12,7 +15,9 @@ const nextConfig: NextConfig = {
   },
 
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+    // Strip debug logging in production but keep errors, warnings and info, or a
+    // failure on the server (email, Etsy, database) leaves no trace in the logs.
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn', 'info'] } : false,
   },
 
   async headers() {

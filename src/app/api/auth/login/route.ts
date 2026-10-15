@@ -9,6 +9,9 @@ import { resolveRole } from '@/lib/auth/roles'
 import { verifyRecaptcha } from '@/lib/recaptcha'
 import type { ApiResponse, AuthUser } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<AuthUser>>> {
   try {
     const body   = await req.json()

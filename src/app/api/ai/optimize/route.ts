@@ -4,6 +4,9 @@ import { searchEtsyListingsPaged, getListingById } from '@/lib/etsy'
 import { geminiJSON, isGeminiConfigured } from '@/lib/gemini'
 import type { ApiResponse, AiOptimization, AiSuggestion, EtsyListing } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 /**

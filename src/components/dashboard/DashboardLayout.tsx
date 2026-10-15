@@ -49,7 +49,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode; description: stri
     icon: ICON(<><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M3 9h18"/><path d="M9 21v-6h6v6"/></>) },
   { id: 'hotproducts', label: 'Find Hot Products',group: 'Research', accent: 'rose',    description: 'Discover trending products by real engagement',
     icon: ICON(<><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></>) },
-  { id: 'keywords',    label: 'Keywords',      group: 'Research',    accent: 'blue',    description: 'Research search volume & CTR',
+  { id: 'keywords',    label: 'Keywords',      group: 'Research',    accent: 'blue',    description: 'Research search volume & competition',
     icon: ICON(<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></>) },
   { id: 'listings',    label: 'Listings',      group: 'Research',    accent: 'cyan',    description: 'Browse live Etsy listings',
     icon: ICON(<><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></>) },
@@ -188,7 +188,7 @@ export function DashboardLayout() {
         {/* Logo */}
         <div style={{ padding: '20px 22px 16px', borderBottom: `1px solid ${C.ash}` }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-            <span style={{ fontSize: 23, fontWeight: 700, color: C.ink, letterSpacing: '-0.04em' }}>Ranktsy<span style={{ color: '#FF5A00' }}>.</span></span>
+            <span style={{ fontSize: 23, fontWeight: 700, color: C.ink, letterSpacing: '-0.04em' }}>Rankkw<span style={{ color: '#FF5A00' }}>.</span></span>
           </Link>
         </div>
 

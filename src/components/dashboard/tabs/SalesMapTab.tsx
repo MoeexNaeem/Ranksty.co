@@ -47,7 +47,7 @@ export function ConnectShopPrompt({ what, needsAuth }: { what: string; needsAuth
         <p style={{ fontSize: 14, color: C.graphite, lineHeight: 1.6, maxWidth: 460, margin: '0 auto 20px' }}>
           {what} comes from your own Etsy order receipts, which only Etsy can release to you.
           {needsAuth
-            ? ' Sign in to your Ranktsy account, then connect your shop.'
+            ? ' Sign in to your Rankkw account, then connect your shop.'
             : <> Connect your shop from the <strong style={{ color: C.ink }}>My Shop</strong> tab to enable it.</>}
         </p>
         <p style={{ fontSize: 12, color: C.stone, fontFamily: MONO }}>

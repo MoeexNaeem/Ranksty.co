@@ -3,14 +3,14 @@
  * Saved keyword lists — the single owner of the localStorage bucket that both
  * the Keyword Lists tab and the star control read.
  *
- * The key is namespaced by brand, so the Ranktsy → Ranktsy rename would have
- * silently orphaned every existing user's saved lists. `migrate()` moves them
- * across once, on first read.
+ * The key is namespaced by brand, so the Ranktsy → Rankkw rename (rankkw.online,
+ * 2026-10-15) would have silently orphaned every existing user's saved lists.
+ * `migrate()` moves them across once, on first read.
  */
 export interface KList { id: string; name: string; keywords: string[] }
 
-export const STORAGE_KEY = 'ranktsy:keyword-lists'
-export const LISTS_EVENT = 'ranktsy:lists-changed'
+export const STORAGE_KEY = 'rankkw:keyword-lists'
+export const LISTS_EVENT = 'rankkw:lists-changed'
 
 /** Keys this data has lived under before. Newest last. */
 const LEGACY_KEYS = ['ranktsy:keyword-lists']

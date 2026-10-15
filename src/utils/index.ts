@@ -89,7 +89,7 @@ export const D = {
 } as const
 
 // ─── Per-tool ACCENT system ──────────────────────────────────────────────────
-// Ranktsy's vibrant look gives every tool its own hue (the colorful tool tiles).
+// Rankkw's vibrant look gives every tool its own hue (the colorful tool tiles).
 // The hue drives the nav icon, the tab header chip, and — via the `--accent` CSS
 // var on the dashboard content wrapper — the shared kit (stat caps, section dots,
 // search icon). Orange + purple are the brand pair; the rest fill the spectrum.

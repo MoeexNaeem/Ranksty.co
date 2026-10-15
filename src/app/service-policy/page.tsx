@@ -8,13 +8,13 @@ const sections = [
     number: '01',
     title: 'Overview',
     content:
-      'This Service Policy describes how Ranktsy ("the Service," "we," "us") delivers its keyword research and analytics platform to Etsy sellers, including the scope of what we provide, how the Service is supported, and what you can expect in terms of availability. This policy works alongside our Terms of Service and Privacy Policy.',
+      'This Service Policy describes how Rankkw ("the Service," "we," "us") delivers its keyword research and analytics platform to Etsy sellers, including the scope of what we provide, how the Service is supported, and what you can expect in terms of availability. This policy works alongside our Terms of Service and Privacy Policy.',
     bullets: [],
   },
   {
     number: '02',
     title: 'Description of the Service',
-    content: 'Ranktsy provides software-as-a-service tools delivered entirely online. There is no physical product, shipment, or delivery involved. Our core offerings include:',
+    content: 'Rankkw provides software-as-a-service tools delivered entirely online. There is no physical product, shipment, or delivery involved. Our core offerings include:',
     bullets: [
       { label: 'Keyword Research', text: 'Live analysis of Etsy listing competition, engagement, and pricing, supplemented with Google search-volume data where available.' },
       { label: 'Trend Analytics', text: 'Seasonality and listing-creation trends sourced from Google Ads data and the Etsy Open API.' },
@@ -31,7 +31,7 @@ const sections = [
   {
     number: '04',
     title: 'Service Availability',
-    content: 'We aim to keep Ranktsy available and performant at all times, but the Service is provided on an "as available" basis. We do not guarantee uninterrupted access, and availability may be affected by:',
+    content: 'We aim to keep Rankkw available and performant at all times, but the Service is provided on an "as available" basis. We do not guarantee uninterrupted access, and availability may be affected by:',
     bullets: [
       { label: '', text: 'Scheduled maintenance, which we will attempt to perform during low-traffic hours and announce in advance where practical.' },
       { label: '', text: 'Outages or rate limits imposed by third-party providers we depend on, including the Etsy Open API and Google Ads data.' },
@@ -48,13 +48,13 @@ const sections = [
   {
     number: '06',
     title: 'Fair Use',
-    content: 'To keep the Service reliable for everyone, accounts are expected to use Ranktsy for legitimate keyword research and shop analytics. We reserve the right to throttle, suspend, or terminate access for accounts that place excessive automated load on our infrastructure or otherwise breach the Acceptable Use section of our Terms of Service.',
+    content: 'To keep the Service reliable for everyone, accounts are expected to use Rankkw for legitimate keyword research and shop analytics. We reserve the right to throttle, suspend, or terminate access for accounts that place excessive automated load on our infrastructure or otherwise breach the Acceptable Use section of our Terms of Service.',
     bullets: [],
   },
   {
     number: '07',
     title: 'Changes to the Service',
-    content: 'We continuously improve Ranktsy and may add, modify, or discontinue individual features at our discretion. Where a change materially reduces functionality available to paying subscribers, we will provide reasonable notice by email.',
+    content: 'We continuously improve Rankkw and may add, modify, or discontinue individual features at our discretion. Where a change materially reduces functionality available to paying subscribers, we will provide reasonable notice by email.',
     bullets: [],
   },
   {
@@ -214,7 +214,7 @@ export default function ServicePolicyPage() {
                 paddingLeft: 20,
               }}
             >
-              This Service Policy explains what Ranktsy provides, how the Service is supported, and what you can expect from us as a subscriber. It should be read together with our Terms of Service and Privacy Policy.
+              This Service Policy explains what Rankkw provides, how the Service is supported, and what you can expect from us as a subscriber. It should be read together with our Terms of Service and Privacy Policy.
             </p>
 
             {sections.map((s, i) => (
@@ -335,7 +335,7 @@ export default function ServicePolicyPage() {
                     }}
                   >
                     <a
-                      href="mailto:support@ranktsy.co"
+                      href="mailto:support@rankkw.online"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -347,10 +347,10 @@ export default function ServicePolicyPage() {
                       }}
                     >
                       <span style={{ opacity: 0.6, fontSize: 12 }}>EMAIL</span>
-                      support@ranktsy.co
+                      support@rankkw.online
                     </a>
                     <a
-                      href="https://ranktsy.co/contact"
+                      href="https://rankkw.online/contact"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -362,7 +362,7 @@ export default function ServicePolicyPage() {
                       }}
                     >
                       <span style={{ opacity: 0.6, fontSize: 12 }}>WEB</span>
-                      ranktsy.co/contact
+                      rankkw.online/contact
                     </a>
                   </div>
                 )}

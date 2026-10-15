@@ -5,6 +5,9 @@ import { normalizeGeo } from '@/lib/google-ads'
 import { guardSearch } from '@/lib/searchGate'
 import { buildKeywordTrends } from '@/lib/trends'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 /**

@@ -3,6 +3,9 @@ import { memCache, cacheKey, CACHE_TTL } from '@/lib/cache'
 import { getListingById, searchEtsyListingsPaged, dominantCurrencyPrices } from '@/lib/etsy'
 import type { ApiResponse, ListingBenchmark } from '@/types'
 
+// Per request: never pre-rendered or cached at build time (Etsy data must stay fresh).
+export const dynamic = 'force-dynamic'
+
 export const runtime = 'nodejs'
 
 const median = (a: number[]) => (a.length ? a.slice().sort((x, y) => x - y)[Math.floor((a.length - 1) / 2)] : 0)
